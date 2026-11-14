@@ -54,9 +54,10 @@ fun Msg(t: String) {
 @Composable
 fun Head(t: String) {
     Column(Modifier.fillMaxWidth()) {
-        Text(t, Modifier.fillMaxWidth().background(INK).padding(horizontal = 6.dp, vertical = 5.dp),
-            color = LCD, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
+        Text(t.uppercase(), Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp),
+            color = INK, fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, letterSpacing = 2.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.fillMaxWidth().height(2.dp).background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(HUD_CYAN, HUD_PINK))))
         Spacer(Modifier.height(8.dp))
     }
 }

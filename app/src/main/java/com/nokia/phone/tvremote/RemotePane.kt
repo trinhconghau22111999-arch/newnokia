@@ -23,7 +23,7 @@ class RemotePane(act: Activity, onMic: () -> Unit) : RemoteLinkService.Connectio
     val view: View get() = panel
 
     init {
-        RemoteTheme.lcd(0xFFC7F0D8.toInt(), 0xFF1B2B1B.toInt())
+        RemoteTheme.lcd(0xFF06143A.toInt(), 0xFF2DD9FF.toInt())
         panel = RemotePanel(act, "ĐIỀU KHIỂN TV", { RemoteLink.send(it) }, onMic)
         RemoteLink.start(act)
         ui.post(object : Runnable {

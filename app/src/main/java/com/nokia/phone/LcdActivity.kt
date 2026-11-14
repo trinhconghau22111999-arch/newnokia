@@ -122,7 +122,7 @@ fun NokiaFrame(
     LaunchedEffect(Unit) { focus.requestFocus() }
     Column(
         Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF4469BC), Color(0xFF223C78))))
+            .hudBackground()
             .padding(bottom = 10.dp)
             .focusRequester(focus).focusable()
             .onKeyEvent { e ->

@@ -30,7 +30,7 @@ object RemoteTheme {
 
     fun lcd(paperColor: Int, inkColor: Int) {
         paper = paperColor; ink = inkColor
-        pressed = 0xFFA9D9BC.toInt(); accent = inkColor; track = 0xFFB4E0C5.toInt(); muted = 0xFF4F6B57.toInt()
+        pressed = 0xFF14408F.toInt(); accent = 0xFFFF3D8B.toInt(); track = 0xFF14306E.toInt(); muted = 0xFF7FA6D9.toInt()
     }
 }
 
@@ -70,8 +70,13 @@ class IconButton(ctx: Context, private val kind: Int) : View(ctx) {
         line.color = ink; line.strokeWidth = 2.2f * d
         if (rect) {
             val bg = RectF(2f * d, 2f * d, width - 2f * d, height - 2f * d)
-            c.drawRoundRect(bg, 12f * d, 12f * d, fill)
-            c.drawRoundRect(bg, 12f * d, 12f * d, line)
+            val cc = 10f * d
+            val chamfer = Path().apply {
+                moveTo(bg.left + cc, bg.top); lineTo(bg.right, bg.top); lineTo(bg.right, bg.bottom - cc)
+                lineTo(bg.right - cc, bg.bottom); lineTo(bg.left, bg.bottom); lineTo(bg.left, bg.top + cc); close()
+            }
+            c.drawPath(chamfer, fill)
+            c.drawPath(chamfer, line)
         } else {
             c.drawCircle(cx, cy, r, fill)
             c.drawCircle(cx, cy, r, line)

@@ -108,11 +108,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-val LCD = Color(0xFFC7F0D8)
-val INK = Color(0xFF1B2B1B)
-val KEY = Color(0xFFD5DAE3)
-val KEYTXT = Color(0xFF1B2230)
-val MONO = FontFamily.Monospace
+val LCD = Color(0xFF06143A)        // nền navy (màu "giấy" của màn hình)
+val INK = Color(0xFF2DD9FF)        // chữ / viền neon cyan
+val KEY = Color(0xFF0E2A6B)
+val KEYTXT = Color(0xFFE8F8FF)
+val MONO = HUD_FONT
 
 val MENU = listOf(
     "Nhật ký" to "calllog", "Danh bạ" to "contacts", "TV" to "tv", "YouTube" to "youtube", "Tin nhắn" to "messages",
@@ -357,7 +357,7 @@ fun isBtOn(ctx: Context): Boolean = try {
 fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false, hint: Boolean = true, light: Boolean = false) {
     // Có ảnh nền do người dùng chọn -> chữ trắng (kèm bóng mờ nhẹ cho dễ đọc); nền mặc định -> chữ đen như cũ
     // light = ảnh nền sáng -> chữ đen (bóng trắng mờ); ảnh tối -> chữ trắng (bóng đen mờ)
-    val c = if (onPhoto && !light) Color.White else INK
+    val c = if (onPhoto && light) Color.Black else Color.White
     val sh = if (onPhoto) androidx.compose.ui.text.TextStyle(
         shadow = androidx.compose.ui.graphics.Shadow((if (light) Color.White else Color.Black).copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -377,22 +377,11 @@ fun LockScreen(time: String, date: String, armed: Boolean, wall: ImageBitmap? = 
             Image(wall, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = size.height
-            drawRect(brush = Brush.verticalGradient(listOf(Color(0xFF8FD3F4), Color(0xFFDDF4E4))))
-            drawCircle(Color(0xFFFFE9A8), radius = w * 0.13f, center = Offset(w * 0.8f, h * 0.30f))
-            val far = Path().apply {
-                moveTo(0f, h * 0.74f)
-                quadraticBezierTo(w * 0.25f, h * 0.58f, w * 0.55f, h * 0.74f)
-                quadraticBezierTo(w * 0.8f, h * 0.86f, w, h * 0.70f)
-                lineTo(w, h); lineTo(0f, h); close()
-            }
-            drawPath(far, Color(0xFF7CCB93))
-            val near = Path().apply {
-                moveTo(0f, h * 0.86f)
-                quadraticBezierTo(w * 0.35f, h * 0.74f, w * 0.7f, h * 0.88f)
-                quadraticBezierTo(w * 0.88f, h * 0.94f, w, h * 0.84f)
-                lineTo(w, h); lineTo(0f, h); close()
-            }
-            drawPath(near, Color(0xFF3F9E63))
+            drawRect(brush = Brush.verticalGradient(listOf(HUD_BG1, HUD_BG0)))
+            hudGrid()
+            drawCircle(HUD_CYAN.copy(alpha = 0.35f), radius = w * 0.24f, center = Offset(w * 0.5f, h * 0.62f), style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+            drawCircle(HUD_PINK.copy(alpha = 0.30f), radius = w * 0.33f, center = Offset(w * 0.5f, h * 0.62f), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+            drawLine(Brush.horizontalGradient(listOf(HUD_CYAN, HUD_PINK)), Offset(0f, h * 0.62f), Offset(w, h * 0.62f), 2.dp.toPx())
         }
         LockTexts(time, date, armed, wall != null)
     }
@@ -1867,7 +1856,7 @@ fun Phone() {
         val ratio = maxWidth / maxHeight
         Column(
             Modifier.fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color(0xFF4469BC), Color(0xFF223C78))))
+                .hudBackground()
                 .padding(bottom = 10.dp)
                 .focusRequester(focus).focusable()
                 .onKeyEvent { e ->
@@ -1891,28 +1880,35 @@ fun Phone() {
             val homeSh = if (homePhoto) androidx.compose.ui.text.TextStyle(
                 shadow = androidx.compose.ui.graphics.Shadow((if (homeLight) Color.White else Color.Black).copy(alpha = 0.55f), Offset(0f, 2f), 6f)) else androidx.compose.ui.text.TextStyle.Default
             // Màn hình LCD nhỏ (phần duy nhất thay đổi)
-            Box(Modifier.fillMaxWidth().weight(0.72f).background(LCD), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().weight(0.72f).hudBackground(underline = true), contentAlignment = Alignment.Center) {
             LcdFontScale {
             Box(Modifier.fillMaxSize()) {
                 if (homePhoto) Image(homeBmp!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                Column(Modifier.fillMaxSize().background(if (homePhoto) Color.Transparent else LCD).statusBarsPadding()) {
+                Column(Modifier.fillMaxSize().statusBarsPadding()) {
                     Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { lcdRect = it.boundsInWindow() }
                         // Camera: khung xem trước phủ kín vùng LCD, không chừa rìa hai bên
                         .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 6.dp,
                             vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 2.dp)) {
                         when (screen) {
                             "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(now.take(5), color = homeInk, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
-                                    Text(dateNow(), color = homeInk, style = homeSh, fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
-                                        maxLines = 2, textAlign = TextAlign.Center)
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                                    Text("NOKIA", color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, letterSpacing = 2.sp)
+                                    Text(ramText(ctx), color = HUD_PINK, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                    Text("● PIN " + Batt.percent(ctx) + "%", Modifier.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                        color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                }
+                                Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+                                    horizontalAlignment = Alignment.Start) {
+                                    Text(now.take(5), color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                    Text(dateNow().uppercase(), color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
+                                        maxLines = 2, letterSpacing = 1.sp)
                                 }
                                 Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
-                            "menu" -> if (homePhoto) Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f,
-                                ink = homeInk, inkOn = if (homeInk == Color.White) INK else Color.White, rowBg = Color.Transparent, style = homeSh)
-                                else Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f)   // tên mục menu to hơn 5%
+                            "menu" -> if (homePhoto) Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true,
+                                ink = homeInk, inkOn = if (homeInk == Color.White) LCD else Color.White, rowBg = Color.Transparent, style = homeSh)
+                                else Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
@@ -1951,7 +1947,7 @@ fun Phone() {
                             }
                             "calendar" -> MonthCalendar(monthOffset) { d -> monthOffset += d }
                             "settings" -> { val t = infoTick
-                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null) }, sel, tapItem, scroll) }
+                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null) }, sel, tapItem, scroll, caps = true) }
                             "wifi" -> { val t = infoTick
                                 if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) Msg("Cần quyền Vị trí để quét wifi\n(bấm OK để cấp)")
                                 else Lines(wifiLines(ctx, wifiNets), sel, tapItem, scroll) }
@@ -2204,8 +2200,8 @@ fun Phone() {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -> Unit, detail: List<String> = emptyList(), scale: Float = 1f,
-          ink: Color = INK, inkOn: Color = LCD, rowBg: Color = LCD,
-          style: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default) {
+          ink: Color = INK, inkOn: Color = LCD, rowBg: Color = Color.Transparent,
+          style: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default, caps: Boolean = false) {
     // ink / inkOn / rowBg / style: dùng khi có ảnh nền (menu): chữ theo độ sáng ảnh, hàng không tô nền, ô chọn tô màu chữ
     // detail: các dòng chữ nhỏ chèn ngay dưới ô đang chọn (không chọn được, không chiếm số thứ tự)
     val extra = if (sel in items.indices) detail.size else 0
@@ -2235,18 +2231,18 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
                     // key(i): đổi ô chọn thì chữ chạy bắt đầu lại từ đầu
                     androidx.compose.runtime.key(i) {
                         Box(Modifier.fillMaxWidth().height(rowH).clickable { onTap(i) }
-                            .background(if (i == sel) ink else rowBg).padding(horizontal = 6.dp),
+                            .then(if (i == sel) Modifier.clip(ChamferShape(8.dp)).background(ink) else Modifier.background(rowBg)).padding(horizontal = 10.dp),
                             contentAlignment = Alignment.CenterStart) {
                             if (i == sel) {
                                 // Ô đang chọn mà tên dài hơn màn hình: chữ chạy ngang cho đọc hết.
                                 // Dừng ~1,2 giây ở đầu để đọc trước, rồi chạy 40dp/giây (vừa đọc), hết thì lặp lại.
-                                Text(items[i], Modifier.basicMarquee(
+                                Text(if (caps) items[i].uppercase() else items[i], Modifier.basicMarquee(
                                         iterations = Int.MAX_VALUE, animationMode = MarqueeAnimationMode.Immediately,
                                         spacing = MarqueeSpacing(32.dp), velocity = 40.dp),
                                     color = inkOn, fontFamily = MONO, fontWeight = FontWeight.Bold,
                                     fontSize = (14f * scale).sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                             } else {
-                                Text(items[i], color = ink, style = style, fontFamily = MONO, fontWeight = FontWeight.Bold,
+                                Text(if (caps) items[i].uppercase() else items[i], color = ink, style = style, fontFamily = MONO, fontWeight = FontWeight.Bold,
                                     fontSize = (14f * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
@@ -2257,8 +2253,8 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
     }
 }
 
-val GREEN = Color(0xFF2E9E4F)
-val RED = Color(0xFFC0392B)
+val GREEN = Color(0xFF2BE38A)
+val RED = Color(0xFFFF3D6B)
 const val CALL_PATH = "M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
 
 /** Biểu tượng ống nghe điện thoại; hangUp = xoay 135° thành nút tắt máy. */
@@ -2287,15 +2283,15 @@ fun BackArrow(color: Color, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun K(mod: Modifier, shape: Shape = RoundedCornerShape(16.dp), bg: Color = KEY,
+fun K(mod: Modifier, shape: Shape = ChamferShape(12.dp), bg: Color = KEY, edge: Color = HUD_CYAN,
       onClick: () -> Unit, content: @Composable () -> Unit) {
-    Box(mod.padding(3.dp).clip(shape).background(bg).clickable(onClick = onClick),
+    Box(mod.padding(3.dp).clip(shape).background(bg).border(1.5.dp, edge, shape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center) { content() }
 }
 
 @Composable
 fun Glyph(t: String, size: Int = 18, fg: Color = KEYTXT) {
-    Text(t, color = fg, fontWeight = FontWeight.Bold, fontSize = size.sp)
+    Text(t, color = fg, fontWeight = FontWeight.Bold, fontFamily = HUD_FONT, fontSize = size.sp)
 }
 
 /** Phím số: chữ số lớn, các chữ cái đậm nằm ngay bên dưới. */
@@ -2303,8 +2299,8 @@ fun Glyph(t: String, size: Int = 18, fg: Color = KEYTXT) {
 fun NumKey(d: String, sub: String, mod: Modifier, onClick: () -> Unit) {
     K(mod, onClick = onClick) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(d, color = KEYTXT, fontWeight = FontWeight.Black, fontSize = 26.sp)
-            Text(if (sub.isEmpty()) " " else sub, color = KEYTXT, fontWeight = FontWeight.ExtraBold,
+            Text(d, color = KEYTXT, fontWeight = FontWeight.Black, fontFamily = HUD_FONT, fontSize = 28.sp)
+            Text(if (sub.isEmpty()) " " else sub, color = HUD_CYAN, fontWeight = FontWeight.ExtraBold, fontFamily = HUD_FONT,
                 fontSize = 12.sp, letterSpacing = 1.sp)
         }
     }
@@ -2312,38 +2308,38 @@ fun NumKey(d: String, sub: String, mod: Modifier, onClick: () -> Unit) {
 
 @Composable
 fun ColumnScope.Keys(p: (String) -> Unit) {
-    val dk = Color(0xFFB4BCCB)
+    val dk = Color(0xFF16398F)
     // Bố cục như Nokia thật: phím mềm (cao) ở trên, Gọi/Tắt (thấp) ở dưới, D-pad tròn ở giữa.
     BoxWithConstraints(Modifier.fillMaxWidth().weight(0.27f).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
         val s = minOf(maxHeight, maxWidth * 0.48f)
         val c = s / 3
         Row(Modifier.fillMaxWidth().height(s)) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = RoundedCornerShape(16.dp), onClick = { p("SOFTL") }) { Glyph("Menu", 20) }
-                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = RoundedCornerShape(14.dp), onClick = { p("CALL") }) {
+                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), onClick = { p("SOFTL") }) { Glyph("Menu", 20) }
+                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), edge = GREEN, onClick = { p("CALL") }) {
                     PhoneIcon(GREEN, false, Modifier.size(31.dp))
                 }
             }
             Column(Modifier.width(s).fillMaxHeight()) {
                 Row(Modifier.height(c)) {
                     Spacer(Modifier.size(c))
-                    K(Modifier.size(c), shape = RoundedCornerShape(10.dp), onClick = { p("UP") }) { Glyph("▲", 14) }
+                    K(Modifier.size(c), shape = ChamferShape(8.dp), onClick = { p("UP") }) { Glyph("▲", 14) }
                     Spacer(Modifier.size(c))
                 }
                 Row(Modifier.height(c)) {
-                    K(Modifier.size(c), shape = RoundedCornerShape(10.dp), onClick = { p("LEFT") }) { Glyph("◀", 14) }
-                    K(Modifier.size(c), shape = RoundedCornerShape(10.dp), bg = dk, onClick = { p("OK") }) { Glyph("OK", 15) }
-                    K(Modifier.size(c), shape = RoundedCornerShape(10.dp), onClick = { p("RIGHT") }) { Glyph("▶", 14) }
+                    K(Modifier.size(c), shape = ChamferShape(8.dp), onClick = { p("LEFT") }) { Glyph("◀", 14) }
+                    K(Modifier.size(c), shape = ChamferShape(8.dp), bg = dk, edge = HUD_PINK, onClick = { p("OK") }) { Glyph("OK", 15) }
+                    K(Modifier.size(c), shape = ChamferShape(8.dp), onClick = { p("RIGHT") }) { Glyph("▶", 14) }
                 }
                 Row(Modifier.height(c)) {
                     Spacer(Modifier.size(c))
-                    K(Modifier.size(c), shape = RoundedCornerShape(10.dp), onClick = { p("DOWN") }) { Glyph("▼", 14) }
+                    K(Modifier.size(c), shape = ChamferShape(8.dp), onClick = { p("DOWN") }) { Glyph("▼", 14) }
                     Spacer(Modifier.size(c))
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = RoundedCornerShape(16.dp), onClick = { p("SOFTR") }) { BackArrow(KEYTXT, Modifier.size(34.dp)) }
-                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = RoundedCornerShape(14.dp), onClick = { p("END") }) {
+                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), onClick = { p("SOFTR") }) { BackArrow(KEYTXT, Modifier.size(34.dp)) }
+                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), edge = RED, onClick = { p("END") }) {
                     PhoneIcon(RED, true, Modifier.size(31.dp))
                 }
             }

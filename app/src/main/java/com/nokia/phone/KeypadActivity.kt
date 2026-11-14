@@ -86,7 +86,7 @@ fun KeypadScreen(onKey: (String) -> Unit) {
     BackHandler { }
     Column(
         Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFF4469BC), Color(0xFF223C78))))
+            .hudBackground()
             .navigationBarsPadding()
             .padding(top = 6.dp, bottom = 6.dp)
     ) {
