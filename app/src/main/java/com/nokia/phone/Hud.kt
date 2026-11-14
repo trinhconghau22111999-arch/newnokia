@@ -76,3 +76,43 @@ fun ramText(ctx: Context): String = try {
     val used = tot - mi.availMem / 1073741824.0
     "RAM %.1f/%.1fG".format(used, tot)
 } catch (e: Exception) { "" }
+
+/** Nền HUD (navy dốc + lưới mờ) cho các màn hình dựng bằng View truyền thống. */
+class HudBgDrawable(private val d: Float) : android.graphics.drawable.Drawable() {
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    override fun draw(c: android.graphics.Canvas) {
+        val b = bounds
+        p.shader = android.graphics.LinearGradient(0f, b.top.toFloat(), 0f, b.bottom.toFloat(),
+            0xFF0A1F5C.toInt(), 0xFF040D26.toInt(), android.graphics.Shader.TileMode.CLAMP)
+        c.drawRect(b, p); p.shader = null
+        p.color = 0x1219D3FF; p.strokeWidth = 1f
+        val step = 22f * d
+        var x = b.left.toFloat()
+        while (x < b.right) { c.drawLine(x, b.top.toFloat(), x, b.bottom.toFloat(), p); x += step }
+        var y = b.top.toFloat()
+        while (y < b.bottom) { c.drawLine(b.left.toFloat(), y, b.right.toFloat(), y, p); y += step }
+    }
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun getOpacity(): Int = android.graphics.PixelFormat.OPAQUE
+}
+
+/** Nút vát góc (trên-trái, dưới-phải) viền neon cho các View truyền thống. */
+class HudChipDrawable(private val fill: Int, private val edge: Int, private val stroke: Float, private val cut: Float) :
+    android.graphics.drawable.Drawable() {
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    override fun draw(c: android.graphics.Canvas) {
+        val h = stroke / 2f
+        val l = bounds.left + h; val t = bounds.top + h; val r = bounds.right - h; val b = bounds.bottom - h
+        val path = android.graphics.Path().apply {
+            moveTo(l + cut, t); lineTo(r, t); lineTo(r, b - cut); lineTo(r - cut, b); lineTo(l, b); lineTo(l, t + cut); close()
+        }
+        p.style = android.graphics.Paint.Style.FILL; p.color = fill; c.drawPath(path, p)
+        p.style = android.graphics.Paint.Style.STROKE; p.strokeWidth = stroke; p.color = edge; c.drawPath(path, p)
+    }
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
+}

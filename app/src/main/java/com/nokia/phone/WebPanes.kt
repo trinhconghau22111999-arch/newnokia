@@ -384,11 +384,8 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
     private fun paintNav() {
         navItems.forEachIndexed { i, b ->
             val sel = i == navSel
-            b.background = GradientDrawable().apply {
-                setColor(if (sel) 0xFF1565C0.toInt() else 0xFF2B2B3A.toInt())
-                cornerRadius = dp(6).toFloat()
-                if (sel) setStroke(dp(3), Color.WHITE)
-            }
+            b.background = if (sel) HudChipDrawable(0xFF16398F.toInt(), 0xFFFF3D8B.toInt(), dp(3).toFloat(), dp(12).toFloat())
+                else HudChipDrawable(0xFF0E2A6B.toInt(), 0xFF19D3FF.toInt(), dp(2).toFloat(), dp(12).toFloat())
         }
         val b = navItems.getOrNull(navSel) ?: return
         val sv = navScroll ?: return
@@ -467,6 +464,7 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
 
     init {
         view.setBackgroundColor(Color.BLACK)
+        chooser.background = HudBgDrawable(act.resources.displayMetrics.density)
         view.addView(chooser, FrameLayout.LayoutParams(-1, -1))
         try {
             val txt = act.assets.open("channels.json").bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -485,12 +483,15 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
     }
 
     private fun label(t: String, sizeSp: Float = 18f) = TextView(act).apply {
-        text = t; setTextColor(Color.WHITE); textSize = sizeSp; typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+        text = t.uppercase(); setTextColor(0xFF2DD9FF.toInt()); textSize = sizeSp; letterSpacing = 0.1f
+        typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD); gravity = Gravity.CENTER
     }
 
     private fun chip(t: String, onClick: () -> Unit) = Button(act).apply {
-        text = t; isAllCaps = false; setTextColor(Color.WHITE); textSize = 16f
-        setBackgroundColor(0xFF2B2B3A.toInt()); setOnClickListener { onClick() }
+        text = t; isAllCaps = true; setTextColor(Color.WHITE); textSize = 17f
+        typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD); stateListAnimator = null
+        background = HudChipDrawable(0xFF0E2A6B.toInt(), 0xFF19D3FF.toInt(), dp(2).toFloat(), dp(12).toFloat())
+        setOnClickListener { onClick() }
     }
 
     private fun showGroups(sel: Int = 0) {
