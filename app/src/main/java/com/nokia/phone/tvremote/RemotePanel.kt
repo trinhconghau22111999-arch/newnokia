@@ -110,8 +110,15 @@ class RemotePanel(
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
         statusDot = View(context)
-        head.addView(statusDot, LayoutParams(dp(9), dp(9)).also { it.rightMargin = dp(6) })
-        head.addView(statusText)
+        // Bấm vào dòng trạng thái kết nối -> hộp đổi mã kết nối
+        val statusBox = LinearLayout(context).apply {
+            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(6), 0, dp(6)); isClickable = true
+            setOnClickListener { Haptics.tick(this); showCodeDialog() }
+        }
+        statusBox.addView(statusDot, LayoutParams(dp(9), dp(9)).also { it.rightMargin = dp(6) })
+        statusBox.addView(statusText)
+        head.addView(statusBox)
         addView(head, LayoutParams(-1, -2))
         addView(View(context).apply { setBackgroundColor(RemoteTheme.ink) },
             LayoutParams(-1, dp(2)).also { it.topMargin = dp(4) })
@@ -158,7 +165,7 @@ class RemotePanel(
 
         val side = LinearLayout(context).apply { orientation = VERTICAL }
         val btnBack = textButton("LÙI", 13f) { send(JSONObject().put("action", "back")) }
-        btnBack.background = box(0xFFFFD600.toInt(), 12, 2.2f)   // nút LÙI nền vàng
+        btnBack.background = box(0xFF2BE38A.toInt(), 12, 2.2f)   // nút LÙI nền xanh lá
         btnBack.setTextColor(0xFF06143A.toInt())
         side.addView(btnBack, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val q = LinearLayout(context).apply { orientation = HORIZONTAL }
@@ -254,6 +261,61 @@ class RemotePanel(
             setStroke(dp(1), RemoteTheme.ink)
         }
         statusText.text = if (on) "ĐÃ KẾT NỐI" else "CHƯA KẾT NỐI"
+    }
+
+    // ---------------------------------------------------------------- Đổi mã kết nối
+
+    /** Hộp nhập mã kết nối mới (mặc định 123456); bấm ĐỔI là lưu và kết nối lại bằng mã mới ngay. */
+    private fun showCodeDialog() {
+        val dlg = android.app.Dialog(context)
+        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val cyan = 0xFF2DD9FF.toInt()
+        val col = LinearLayout(context).apply {
+            orientation = VERTICAL; setPadding(dp(18), dp(16), dp(18), dp(16))
+            background = HudChipDrawable(0xFF071A44.toInt(), cyan, dp(2).toFloat(), dp(14).toFloat())
+        }
+        col.addView(TextView(context).apply {
+            text = "MÃ KẾT NỐI TV"; textSize = 16f; setTextColor(cyan); letterSpacing = 0.12f
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        })
+        col.addView(TextView(context).apply {
+            text = "Mã hiện tại: ${RemoteLink.code(context)}\nApp TV phải nhập cùng mã này."
+            textSize = 12f; setTextColor(0xFF9FC4F0.toInt()); setPadding(0, dp(6), 0, dp(8))
+        })
+        val input = android.widget.EditText(context).apply {
+            setText(RemoteLink.code(context)); setSelectAllOnFocus(true)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(12))
+            setTextColor(Color.WHITE); textSize = 26f; gravity = Gravity.CENTER; letterSpacing = 0.2f
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            background = HudChipDrawable(0xFF0E2A6B.toInt(), cyan, dp(2).toFloat(), dp(10).toFloat())
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+        }
+        col.addView(input, LayoutParams(-1, -2))
+        val row = LinearLayout(context).apply { orientation = HORIZONTAL }
+        fun btn(t: String, edge: Int, onClick: () -> Unit) = TextView(context).apply {
+            text = t; textSize = 15f; gravity = Gravity.CENTER; setTextColor(Color.WHITE); letterSpacing = 0.08f
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            background = HudChipDrawable(0xFF0E2A6B.toInt(), edge, dp(2).toFloat(), dp(10).toFloat())
+            setOnClickListener { Haptics.tick(this); onClick() }
+        }
+        row.addView(btn("HỦY", cyan) { dlg.dismiss() }, LayoutParams(0, dp(46), 1f).also { it.rightMargin = dp(6) })
+        row.addView(btn("ĐỔI", 0xFF2BE38A.toInt()) {
+            val c = input.text.toString().trim()
+            if (c.length < 4) { Toast.makeText(context, "Mã cần ít nhất 4 số", Toast.LENGTH_SHORT).show(); return@btn }
+            RemoteLink.changeCode(context, c)
+            setConnected(false)
+            Toast.makeText(context, "Đã đổi mã kết nối: $c", Toast.LENGTH_SHORT).show()
+            dlg.dismiss()
+        }, LayoutParams(0, dp(46), 1f).also { it.leftMargin = dp(6) })
+        col.addView(row, LayoutParams(-1, -2).also { it.topMargin = dp(14) })
+        dlg.setContentView(col)
+        dlg.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setLayout((context.resources.displayMetrics.widthPixels * 0.88f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        }
+        dlg.show()
     }
 
     // ---------------------------------------------------------------- Gửi lệnh

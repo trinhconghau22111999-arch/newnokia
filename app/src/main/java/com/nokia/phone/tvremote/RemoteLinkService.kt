@@ -47,8 +47,22 @@ private class TvConn(val viewerId: String) {
  * app con "Điều khiển TV" - rời app con là dừng.
  */
 object RemoteLink {
-    /** Mã ghép nối cố định, khớp TransferHost.CODE bên app TV. */
-    const val CODE = "123456"
+    /** Mã ghép nối mặc định, khớp TransferHost.CODE bên app TV. Đổi được ngay trong app (bấm vào dòng trạng thái kết nối). */
+    const val DEFAULT_CODE = "123456"
+    private const val PREFS = "nokia_remote"
+    private const val KEY_CODE = "code"
+
+    /** Mã ghép nối đang dùng (đã lưu); chưa đổi thì là mã mặc định. */
+    fun code(ctx: Context): String =
+        ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CODE, null)
+            ?.takeIf { it.isNotBlank() } ?: DEFAULT_CODE
+
+    /** Lưu mã mới rồi ngắt phòng cũ và kết nối lại bằng mã mới ngay. */
+    fun changeCode(ctx: Context, newCode: String) {
+        ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_CODE, newCode).apply()
+        stop(ctx)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ start(ctx) }, 700)
+    }
 
     /**
      * Cấu hình Firebase (cùng dự án với app TV / truyentep.html) nạp thẳng trong code, nên không
@@ -73,6 +87,7 @@ object RemoteLink {
 
     fun start(ctx: Context) {
         try {
+            val CODE = code(ctx)
             ensureFirebase(ctx)
             // updateChildren (không setValue) để KHÔNG xoá nhánh "viewers" mà TV đang chờ.
             FirebaseDatabase.getInstance().reference.child("rooms").child(CODE).updateChildren(
