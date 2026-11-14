@@ -1891,9 +1891,7 @@ fun Phone() {
                             vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 2.dp)) {
                         when (screen) {
                             "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                                    Text("NOKIA", color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, letterSpacing = 2.sp)
-                                    Text(ramText(ctx), color = HUD_PINK, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), Arrangement.End, Alignment.CenterVertically) {
                                     Text("● PIN " + Batt.percent(ctx) + "%", Modifier.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
                                         color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                 }
