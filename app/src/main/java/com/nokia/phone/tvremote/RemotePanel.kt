@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import com.nokia.phone.HudChipDrawable
 import org.json.JSONObject
 import java.util.concurrent.Executors
 
@@ -72,10 +73,9 @@ class RemotePanel(
 
     // ---------------------------------------------------------------- Dựng giao diện
 
-    private fun box(fill: Int, radiusDp: Int, strokeDp: Float) = GradientDrawable().apply {
-        setColor(fill); cornerRadius = dp(radiusDp).toFloat()
-        setStroke((strokeDp * resources.displayMetrics.density).toInt(), RemoteTheme.ink)
-    }
+    /** Khung vát góc (trên-trái, dưới-phải) viền neon, cùng kiểu các phím của thân máy. */
+    private fun box(fill: Int, radiusDp: Int, strokeDp: Float): android.graphics.drawable.Drawable =
+        HudChipDrawable(fill, RemoteTheme.ink, strokeDp * resources.displayMetrics.density, dp(radiusDp).toFloat())
 
     private fun caption(t: String, size: Float = 9f) = TextView(context).apply {
         text = t; textSize = size; setTextColor(RemoteTheme.ink); letterSpacing = 0.05f
@@ -118,14 +118,16 @@ class RemotePanel(
 
         // ---- Hàng 4 nút tròn
         btnScreen = IconButton(context, IconButton.POWER).also {
+            it.rect = true
             it.setOnClickListener {
                 tvScreenOn = !tvScreenOn
                 send(JSONObject().put("action", "screen").put("on", tvScreenOn))
                 refreshScreenButton()
             }
         }
-        val btnMic = IconButton(context, IconButton.MIC).also { it.setOnClickListener { onMic() } }
+        val btnMic = IconButton(context, IconButton.MIC).also { it.rect = true; it.setOnClickListener { onMic() } }
         btnTouch = IconButton(context, IconButton.TOUCH).also {
+            it.rect = true
             it.setOnClickListener {
                 tvTouchOff = !tvTouchOff
                 send(JSONObject().put("action", "touchlock").put("on", tvTouchOff))
@@ -133,6 +135,7 @@ class RemotePanel(
             }
         }
         val btnFull = IconButton(context, IconButton.FULL).also {
+            it.rect = true
             it.setOnClickListener { send(JSONObject().put("action", "fullscreen")) }
         }
         screenBox = labeled(btnScreen, "TẮT\nMÀN HÌNH")
@@ -156,6 +159,7 @@ class RemotePanel(
         val side = LinearLayout(context).apply { orientation = VERTICAL }
         val btnBack = textButton("LÙI", 13f) { send(JSONObject().put("action", "back")) }
         btnBack.background = box(0xFFFFD600.toInt(), 12, 2.2f)   // nút LÙI nền vàng
+        btnBack.setTextColor(0xFF06143A.toInt())
         side.addView(btnBack, LayoutParams(-1, 0, 1f).also { it.setMargins(dp(3), dp(3), dp(3), dp(3)) })
         val q = LinearLayout(context).apply { orientation = HORIZONTAL }
         btnQ360 = qualityButton(360); btnQ480 = qualityButton(480); btnQ720 = qualityButton(720)
@@ -283,7 +287,7 @@ class RemotePanel(
     }
 }
 
-/** Thanh trượt dọc tự vẽ: rãnh dày viền mực, phần đã kéo tô mực, nút kéo tròn. */
+/** Thanh trượt dọc tự vẽ: rãnh vát góc viền neon, phần đã kéo tô màu mực, nút kéo vát góc. */
 class VSlider(
     ctx: Context,
     initial: Int,
@@ -299,22 +303,33 @@ class VSlider(
     private fun padTop() = 12f * d      // đầu trên ngắn hơn một chút để con số nằm sát thanh
     private fun trackW() = 16f * d
 
+    /** Hình chữ nhật vát góc trên-trái và dưới-phải. */
+    private fun chamfer(r: android.graphics.RectF, cut: Float) = android.graphics.Path().apply {
+        val k = minOf(cut, r.width() / 2f, r.height() / 2f)
+        moveTo(r.left + k, r.top); lineTo(r.right, r.top); lineTo(r.right, r.bottom - k)
+        lineTo(r.right - k, r.bottom); lineTo(r.left, r.bottom); lineTo(r.left, r.top + k); close()
+    }
+
     override fun onDraw(c: android.graphics.Canvas) {
         val cx = width / 2f
         val top = padTop(); val bot = height - pad()
         val tw = trackW()
         val rect = android.graphics.RectF(cx - tw / 2, top, cx + tw / 2, bot)
+        val trackPath = chamfer(rect, 7f * d)
         p.style = android.graphics.Paint.Style.FILL; p.color = RemoteTheme.track
-        c.drawRoundRect(rect, tw / 2, tw / 2, p)
+        c.drawPath(trackPath, p)
         val y = bot - (bot - top) * value / 100f
+        c.save(); c.clipPath(trackPath)
         p.color = RemoteTheme.ink
-        c.drawRoundRect(android.graphics.RectF(cx - tw / 2, y, cx + tw / 2, bot), tw / 2, tw / 2, p)
-        p.style = android.graphics.Paint.Style.STROKE; p.strokeWidth = 2f * d
-        c.drawRoundRect(rect, tw / 2, tw / 2, p)
+        c.drawRect(android.graphics.RectF(cx - tw / 2, y, cx + tw / 2, bot), p)
+        c.restore()
+        p.style = android.graphics.Paint.Style.STROKE; p.strokeWidth = 2f * d; p.color = RemoteTheme.ink
+        c.drawPath(trackPath, p)
+        val thumb = chamfer(android.graphics.RectF(cx - 14f * d, y - 10f * d, cx + 14f * d, y + 10f * d), 6f * d)
         p.style = android.graphics.Paint.Style.FILL; p.color = RemoteTheme.accent
-        c.drawCircle(cx, y, 11f * d, p)
+        c.drawPath(thumb, p)
         p.style = android.graphics.Paint.Style.STROKE; p.color = RemoteTheme.ink
-        c.drawCircle(cx, y, 11f * d, p)
+        c.drawPath(thumb, p)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
