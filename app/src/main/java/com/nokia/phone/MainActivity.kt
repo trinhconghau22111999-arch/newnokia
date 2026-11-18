@@ -1970,8 +1970,8 @@ fun Phone() {
                                         val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
                                         launchPkg(pkg, lb)
                                     }
+                                Text(dial.takeLast(12), Modifier.fillMaxWidth().padding(top = 28.dp), textAlign = TextAlign.Center, color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                                 }
-                                Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "menu" -> if (homePhoto) Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true,
