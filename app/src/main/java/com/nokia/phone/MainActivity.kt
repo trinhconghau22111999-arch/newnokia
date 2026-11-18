@@ -1890,13 +1890,13 @@ fun Phone() {
                         .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 6.dp,
                             vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 2.dp)) {
                         when (screen) {
-                            "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), Arrangement.End, Alignment.CenterVertically) {
-                                    Text("● PIN " + Batt.percent(ctx) + "%", Modifier.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
-                                        color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
-                                }
+                            "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceBetween, Alignment.CenterHorizontally) {
                                 Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                                     horizontalAlignment = Alignment.Start) {
+                                    Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
+                                        Text("● PIN " + Batt.percent(ctx) + "%", Modifier.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                            color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                    }
                                     Text(now.take(5), color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     Text(dateNow().uppercase(), color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
