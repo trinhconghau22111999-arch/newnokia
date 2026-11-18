@@ -52,6 +52,13 @@ class CallActivity : LcdActivity() {
         if (ok) startCallRec() else toast("Cần quyền Micro để ghi âm")
     }
 
+    /** Khi kết thúc cuộc gọi cũng không chạy hiệu ứng trượt, để LCD không bị vẽ lại. */
+    override fun finish() {
+        super.finish()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setLcd(left = { leftLabel() }, right = { rightLabel() }, keyLeft = { keyLeftLabel() }) { CallLcd() }

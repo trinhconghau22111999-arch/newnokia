@@ -1,5 +1,6 @@
 package com.nokia.phone
 
+import android.app.ActivityOptions
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -176,8 +177,9 @@ class NokiaInCallService : InCallService() {
     private fun uiIntent() = Intent(this, CallActivity::class.java)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
+    /** Mở màn gọi không kèm hiệu ứng chuyển cảnh: LCD hiện ngay, không trượt/vẽ lại khi bắt đầu gọi. */
     private fun openUi() {
-        try { startActivity(uiIntent()) } catch (_: Exception) {}
+        try { startActivity(uiIntent(), ActivityOptions.makeCustomAnimation(this, 0, 0).toBundle()) } catch (_: Exception) {}
     }
 
     private fun pi(i: Intent, rc: Int): PendingIntent = PendingIntent.getActivity(
@@ -254,7 +256,8 @@ class CallActionReceiver : BroadcastReceiver() {
                 CallHub.answer(it)
                 try {
                     c.startActivity(Intent(c, CallActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                        ActivityOptions.makeCustomAnimation(c, 0, 0).toBundle())
                 } catch (_: Exception) {}
             }
             ACT_DECLINE -> CallHub.ringing()?.let { CallHub.reject(it) }
