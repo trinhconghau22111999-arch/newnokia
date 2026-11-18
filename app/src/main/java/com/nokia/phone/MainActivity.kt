@@ -202,7 +202,7 @@ class MainActivity : ComponentActivity() {
     private fun hideBars() {
         val c = WindowInsetsControllerCompat(window, window.decorView)
         c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        c.hide(WindowInsetsCompat.Type.navigationBars())
+        c.show(WindowInsetsCompat.Type.navigationBars()) // luôn bật thanh điều hướng khi vào app
         c.show(WindowInsetsCompat.Type.statusBars())
         c.isAppearanceLightStatusBars = true // nền LCD sáng -> icon tối
     }
@@ -2001,6 +2001,7 @@ fun Phone() {
         Column(
             Modifier.fillMaxSize()
                 .hudBackground()
+                .navigationBarsPadding()
                 .padding(bottom = 10.dp)
                 .focusRequester(focus).focusable()
                 .onKeyEvent { e ->
