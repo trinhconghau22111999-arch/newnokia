@@ -1835,7 +1835,7 @@ fun Phone() {
                 else back()
             "END" -> if (screen == "home") dial = "" else open("home")
             "CALL" -> when (screen) {
-                "home" -> if (dial.isNotEmpty()) callNow(dial) else shortcut("calllog")   // chưa gõ số: phím gọi xanh mở Nhật ký
+                "home" -> if (dial.isNotEmpty()) { callNow(dial); dial = "" } else shortcut("calllog")   // gọi xong, về màn chờ số đã xóa hết   // chưa gõ số: phím gọi xanh mở Nhật ký
                 "contacts" -> cShown.getOrNull(sel)?.let { callNow(it.number) }
                 "thread", "msgview" -> callNow(dialable(curAddr))
                 "calllog" -> calls.getOrNull(sel)?.let { callNow(it.number) }
