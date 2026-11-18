@@ -419,6 +419,8 @@ fun Phone() {
     var pEdit by remember { mutableIntStateOf(0) }          // 0 = giờ tắt, 1 = giờ bật
     var settingsSel by remember { mutableIntStateOf(0) }    // nhớ mục đang chọn khi quay lại Cài đặt
     val uiPrefs = ctx.getSharedPreferences("ui", Context.MODE_PRIVATE)
+    var chargeInfo by remember { mutableStateOf(Batt.power(ctx)) }   // (chữ, chi tiết) công suất sạc; null = không cắm sạc
+    LaunchedEffect(screen) { if (screen == "home") while (true) { chargeInfo = Batt.power(ctx); kotlinx.coroutines.delay(2000) } }   // chỉ đo khi đang ở màn hình chờ
     var pins by remember { mutableStateOf(uiPrefs.getString("pins", "")!!.split("|").filter { it.isNotEmpty() }) }   // icon ghim ở màn hình chờ (tối đa MAX_PINS)
     var pinApp by remember { mutableStateOf<AppInfo?>(null) }                                                         // app đang hỏi ghim/bỏ ghim
     fun togglePin(a: AppInfo) {
@@ -1911,6 +1913,11 @@ fun Phone() {
                                 Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                                     horizontalAlignment = Alignment.Start) {
                                     Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
+                                        chargeInfo?.let { ci ->   // nút công suất sạc, bên trái ô pin, chỉ hiện khi đang cắm sạc
+                                            Text(ci.first, Modifier.clickable { Toast.makeText(ctx, ci.second, Toast.LENGTH_LONG).show() }.border(1.dp, HUD_CYAN.copy(alpha = 0.6f), ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                                color = HUD_CYAN, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                            Spacer(Modifier.width(8.dp))
+                                        }
                                         Text("● PIN " + Batt.percent(ctx) + "%", Modifier.clickable { shortcut("battery") }.border(1.dp, HUD_AMBER.copy(alpha = 0.45f), ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
                                             color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     }

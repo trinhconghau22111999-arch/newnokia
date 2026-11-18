@@ -383,6 +383,42 @@ object Batt {
         return st == BatteryManager.BATTERY_STATUS_CHARGING || st == BatteryManager.BATTERY_STATUS_FULL
     }
 
+    /**
+     * Công suất đang sạc VÀO PIN = điện áp pin x dòng sạc (cách đo giống app ososos). Trả về null khi không cắm sạc;
+     * ngược lại (chữ trên nút, chi tiết khi bấm). Thấp hơn công suất của củ sạc.
+     */
+    fun power(ctx: Context): Pair<String, String>? = try {
+        val bat = sticky(ctx)
+        val plugged = bat?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        if (bat == null || plugged == 0) null else {
+            val status = bat.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            var volt = bat.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0).toDouble()   // mV (một số máy báo bằng V)
+            if (volt > 0 && volt < 100) volt *= 1000
+            val tenth = bat.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
+            val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            val raw = bm?.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) ?: Long.MIN_VALUE
+            val kind = when (plugged) {
+                BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Sạc không dây"
+                BatteryManager.BATTERY_PLUGGED_USB -> "Cổng USB"
+                BatteryManager.BATTERY_PLUGGED_AC -> "Củ sạc (AC)"
+                else -> "Đang cắm sạc"
+            }
+            val temp = if (tenth > 0) String.format(Locale.US, " · %.1f°C", tenth / 10.0) else ""
+            if (raw == Long.MIN_VALUE || raw == 0L || volt <= 0) {
+                val full = status == BatteryManager.BATTERY_STATUS_FULL
+                (if (full) "⚡ ĐẦY" else "⚡ --") to (kind + (if (full) " · pin đã đầy" else " · máy này không báo dòng điện sạc, không đo được công suất") + temp)
+            } else {
+                var ma = Math.abs(raw.toDouble())
+                if (ma >= 20000) ma /= 1000.0   // đa số máy báo bằng µA, một số báo bằng mA
+                val amp = ma / 1000.0
+                val v = volt / 1000.0
+                val w = amp * v
+                String.format(Locale.US, "⚡ %.1fW", w) to
+                    String.format(Locale.US, "%s · %.1fW (%.2fV x %.2fA)%s\nĐây là công suất vào pin, thường thấp hơn công suất của củ sạc.", kind, w, v, amp, temp)
+            }
+        }
+    } catch (_: Exception) { null }
+
     fun saverOn(ctx: Context): Boolean = try {
         (ctx.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
     } catch (_: Exception) { false }
