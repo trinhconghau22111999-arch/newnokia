@@ -1298,7 +1298,7 @@ fun Phone() {
             "alarmEdit" -> screen = "clock"
             "powerEdit" -> { screen = "power"; sel = pEdit }
             "sound", "reset", "wifi", "sim", "brightness", "battery", "storage", "accounts", "power" -> {
-                open("settings"); sel = settingsSel.coerceIn(0, SETTINGS.lastIndex)
+                if (fromHome) open("home") else { open("settings"); sel = settingsSel.coerceIn(0, SETTINGS.lastIndex) }   // mở từ ô pin ngoài màn hình chờ -> Về = màn hình chờ
             }
             "volume" -> open("sound")
             "thread" -> open("messages")
@@ -1897,11 +1897,11 @@ fun Phone() {
                                 Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                                     horizontalAlignment = Alignment.Start) {
                                     Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
-                                        Text("● PIN " + Batt.percent(ctx) + "%", Modifier.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                        Text("● PIN " + Batt.percent(ctx) + "%", Modifier.clickable { shortcut("battery") }.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
                                             color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     }
-                                    Text(now.take(5), color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
-                                    Text(dateNow().uppercase(), color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
+                                    Text(now.take(5), Modifier.clickable { shortcut("clock") }, color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                    Text(dateNow().uppercase(), Modifier.clickable { shortcut("calendar") }, color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
                                 }
                                 Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
