@@ -114,13 +114,24 @@ private fun ColumnScope.IconGrid(apps: List<AppInfo>, sel: Int, onTap: (Int) -> 
     val state = rememberLazyGridState()
     // Cuộn theo ô đang chọn khi di chuyển bằng phím
     LaunchedEffect(sel) {
-        val vis = state.layoutInfo.visibleItemsInfo
+        val info = state.layoutInfo
+        val vis = info.visibleItemsInfo
         if (vis.isNotEmpty()) {
-            val first = vis.first().index
-            val last = vis.last().index
-            val rows = maxOf(1, vis.size / APP_COLS)
-            if (sel < first) state.scrollToItem(sel / APP_COLS * APP_COLS)
-            else if (sel > last) state.scrollToItem(maxOf(0, sel / APP_COLS - rows + 1) * APP_COLS)
+            val cur = vis.firstOrNull { it.index == sel }
+            if (cur == null) {
+                // ô đang chọn nằm ngoài vùng nhìn thấy -> nhảy tới hàng chứa nó
+                val rows = maxOf(1, vis.size / APP_COLS)
+                if (sel < vis.first().index) state.scrollToItem(sel / APP_COLS * APP_COLS)
+                else state.scrollToItem(maxOf(0, sel / APP_COLS - rows + 1) * APP_COLS)
+            } else {
+                // ô hiện một phần (bị cắt ở mép trên/dưới) -> cuộn thêm cho thấy đủ cả ô
+                val top = cur.offset.y
+                val bottom = top + cur.size.height
+                val viewTop = info.viewportStartOffset
+                val viewBottom = info.viewportEndOffset
+                if (top < viewTop) state.animateScrollBy((top - viewTop).toFloat())
+                else if (bottom > viewBottom) state.animateScrollBy((bottom - viewBottom).toFloat())
+            }
         }
     }
     if (apps.isEmpty()) Box(Modifier.weight(1f).fillMaxWidth()) { Msg("(trống)") }
