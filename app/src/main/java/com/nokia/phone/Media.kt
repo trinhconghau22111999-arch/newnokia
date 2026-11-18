@@ -139,6 +139,16 @@ fun takePhoto(ctx: Context, holder: CamHolder) {
     })
 }
 
+/** Chụp và lưu ra một tệp tạm (không vào Thư viện); onDone(true) khi lưu xong. */
+fun takePhotoToFile(ctx: Context, holder: CamHolder, file: File, onDone: (Boolean) -> Unit) {
+    val cap = holder.capture ?: run { onDone(false); return }
+    val o = ImageCapture.OutputFileOptions.Builder(file).build()
+    cap.takePicture(o, ContextCompat.getMainExecutor(ctx), object : ImageCapture.OnImageSavedCallback {
+        override fun onImageSaved(output: ImageCapture.OutputFileResults) { onDone(true) }
+        override fun onError(exception: ImageCaptureException) { onDone(false) }
+    })
+}
+
 /** Bắt đầu quay video (lưu vào Movies/Nokia, có tiếng nếu đã cấp quyền micro). onState báo đang quay hay đã dừng. */
 fun startVideo(ctx: Context, holder: CamHolder, onState: (Boolean) -> Unit) {
     val vc = holder.video ?: return

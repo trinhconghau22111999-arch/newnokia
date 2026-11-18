@@ -551,20 +551,9 @@ fun Phone() {
     var aiTopUpTick by remember { mutableIntStateOf(0) }       // tăng mỗi lần cần bắt đầu nghe số thẻ
     var topupMsg by remember { mutableStateOf("") }            // thông báo màn Nạp thẻ cào
     var topupCode by remember { mutableStateOf("") }           // mã đã đọc được từ ảnh thẻ
-    var topupUri by remember { mutableStateOf<Uri?>(null) }    // ảnh vừa chụp
-    fun topupRecognize(u: Uri) {
-        topupMsg = "Đang đọc mã trên thẻ..."; topupCode = ""
-        try {
-            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).process(InputImage.fromFilePath(ctx, u))
-                .addOnSuccessListener { t ->
-                    val c = topupFind(t.text)
-                    topupCode = c
-                    topupMsg = if (c.isEmpty()) "Không thấy mã số trên ảnh.\nChụp lại cho thẳng, rõ và đủ sáng."
-                    else "Mã đọc được:\n$c\nOK = nạp, Về = hủy"
-                }
-                .addOnFailureListener { topupMsg = "Không đọc được ảnh.\nBấm OK để chụp lại." }
-        } catch (_: Exception) { topupMsg = "Không đọc được ảnh.\nBấm OK để chụp lại." }
-    }
+    val topupCam = remember { CamHolder() }                     // camera nhúng trong màn Nạp thẻ cào
+    var topupCamOk by remember { mutableStateOf(false) }       // đã có quyền máy ảnh
+    var topupBusy by remember { mutableStateOf(false) }        // đang chụp / đọc mã
     var aiMsg by remember { mutableStateOf("") }
     var aiLevel by remember { mutableFloatStateOf(0f) }
     var aiKind by remember { mutableIntStateOf(1) }                    // 1 gọi, 2 gửi tin, 3 soẩn tin
@@ -715,6 +704,7 @@ fun Phone() {
                 cam.capture = null; cam.control = null; cam.hasFlash = false; cam.torch = false
                 camOk = false; camFront = false; flash = false; camVideo = false; camRec = false
             }
+            "topup" -> { topupCam.capture = null; topupCam.control = null; topupCam.hasFlash = false; topupCam.torch = false; topupCamOk = false; topupBusy = false }
             "rec" -> { recs = emptyList(); playing = null }
             "calllog" -> { calls = emptyList(); clLoaded = false }
             "music" -> { Music.stop(); mCur = -1; tracks = emptyList(); mLoaded = false }
@@ -810,10 +800,6 @@ fun Phone() {
             Sims.callHandle(ctx)?.let { i.putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
             ctx.startActivity(i)
         } catch (_: Exception) { dialScreen(n) }
-    }
-    val topupShot = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val u = topupUri
-        if (ok && u != null) topupRecognize(u) else { topupMsg = "Chưa chụp ảnh thẻ.\nBấm OK để chụp lại."; topupCode = "" }
     }
     var pendingCall by remember { mutableStateOf("") }
     val callPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
@@ -1321,7 +1307,10 @@ fun Phone() {
         if (s != "music") aiMusicQ = null
         if (s != "camera") aiShoot = false
         screen = s; sel = 0; monthOffset = 0
-        if (s == "topup") { topupCode = ""; topupMsg = "" }
+        if (s == "topup") {
+            topupCode = ""; topupMsg = ""; topupBusy = false; topupCamOk = false
+            need(listOf(Manifest.permission.CAMERA)) { topupCamOk = true }   // tự mở camera ngay trong khung
+        }
         when (s) {
             "youtube" -> {
                 ytPane?.destroy()
@@ -1446,14 +1435,27 @@ fun Phone() {
         TopUpCode.set(ctx, prefix)
         aiFinish("Đã đổi mã nạp thẻ thành $prefix")
     }
-    /** Nạp thẻ cào: OK lần đầu mở camera chụp thẻ; có mã đọc được thì nạp luôn. */
+    /** Nạp thẻ cào: bấm OK -> chụp ngay trong khung, đọc mã trên ảnh, thấy mã là nạp luôn. */
     fun topupOk() {
-        if (topupCode.isNotEmpty()) { dialTopUp(topupCode); return }
+        if (!topupCamOk || topupBusy) return
         val f = File(ctx.cacheDir, "topup.jpg")
         val u = FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", f)
-        topupUri = u
-        topupMsg = "Đang mở camera..."
-        topupShot.launch(u)
+        topupBusy = true; topupMsg = "Đang chụp..."
+        shutterTick++
+        takePhotoToFile(ctx, topupCam, f) { ok ->
+            if (!ok) { topupBusy = false; topupMsg = "Chụp lỗi.\nBấm OK để chụp lại."; return@takePhotoToFile }
+            topupMsg = "Đang đọc mã trên thẻ..."
+            try {
+                TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).process(InputImage.fromFilePath(ctx, u))
+                    .addOnSuccessListener { t ->
+                        val c = topupFind(t.text)
+                        topupBusy = false
+                        if (c.isEmpty()) topupMsg = "Không thấy mã số.\nĐưa thẻ vào khung cho rõ, bấm OK."
+                        else { topupMsg = "Mã: $c\nĐang nạp..."; dialTopUp(c) }
+                    }
+                    .addOnFailureListener { topupBusy = false; topupMsg = "Không đọc được ảnh.\nBấm OK để chụp lại." }
+            } catch (_: Exception) { topupBusy = false; topupMsg = "Không đọc được ảnh.\nBấm OK để chụp lại." }
+        }
     }
     fun aiExec(c: AiCmd) {
         aiState = 4; aiMsg = ""
@@ -1963,7 +1965,7 @@ fun Phone() {
         "gallery" -> if (gIds.isNotEmpty()) "Xóa" else ""
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
-        "calllog" -> "Gọi"
+        "calllog" -> "Gọi"; "topup" -> "Chụp"
         "youtube", "tv" -> if (ytVoice == 1) "Xong" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
         "remote" -> if (ytVoice == 1) "Xong" else ""   // ẩn nút AI: đã có nút GIỌNG NÓI trong màn hình; khi đang nghe vẫn hiện "Xong"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soẩn"); else -> "Nói" }
@@ -2050,7 +2052,7 @@ fun Phone() {
                                 }
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
-                            "topup" -> TopUpScreen(topupMsg)
+                            "topup" -> TopUpScreen(topupCamOk, topupCam, topupMsg, topupBusy) { press("OK") }
                             "menu" -> if (homePhoto) Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true,
                                 ink = homeInk, inkOn = if (homeInk == Color.White) LCD else Color.White, rowBg = Color.Transparent, style = homeSh)
                                 else Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true)   // tên mục menu to hơn 5%
