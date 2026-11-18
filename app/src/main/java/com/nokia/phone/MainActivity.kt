@@ -1435,26 +1435,40 @@ fun Phone() {
         TopUpCode.set(ctx, prefix)
         aiFinish("Đã đổi mã nạp thẻ thành $prefix")
     }
-    /** Nạp thẻ cào: bấm OK -> chụp ngay trong khung, đọc mã trên ảnh, thấy mã là nạp luôn. */
-    fun topupOk() {
-        if (!topupCamOk || topupBusy) return
-        val f = File(ctx.cacheDir, "topup.jpg")
+    /** Chụp 1 khung vào tệp tạm rồi đọc mã; onDone(mã) - "" nếu không thấy mã, null nếu lỗi chụp/đọc. */
+    fun topupShoot(name: String, onDone: (String?) -> Unit) {
+        val f = File(ctx.cacheDir, name)
         val u = FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", f)
-        topupBusy = true; topupMsg = "Đang chụp..."
-        shutterTick++
         takePhotoToFile(ctx, topupCam, f) { ok ->
-            if (!ok) { topupBusy = false; topupMsg = "Chụp lỗi.\nBấm OK để chụp lại."; return@takePhotoToFile }
-            topupMsg = "Đang đọc mã trên thẻ..."
+            if (!ok) { onDone(null); return@takePhotoToFile }
             try {
                 TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).process(InputImage.fromFilePath(ctx, u))
-                    .addOnSuccessListener { t ->
-                        val c = topupFind(t.text)
-                        topupBusy = false
-                        if (c.isEmpty()) topupMsg = "Không thấy mã số.\nĐưa thẻ vào khung cho rõ, bấm OK."
-                        else { topupMsg = "Mã: $c\nĐang nạp..."; dialTopUp(c) }
+                    .addOnSuccessListener { t -> onDone(topupFind(t.text)) }
+                    .addOnFailureListener { onDone(null) }
+            } catch (_: Exception) { onDone(null) }
+        }
+    }
+    /** Nạp thẻ cào: bấm OK -> chụp 2 khung liền nhau, chỉ nạp khi cả hai lần đọc ra đúng cùng một mã. */
+    fun topupOk() {
+        if (!topupCamOk || topupBusy) return
+        topupBusy = true; topupMsg = "Đang chụp lần 1..."
+        shutterTick++
+        fun fail(m: String) { topupBusy = false; topupMsg = m }
+        topupShoot("topup1.jpg") { c1 ->
+            when {
+                c1 == null -> fail("Chụp lỗi.\nBấm OK để chụp lại.")
+                c1.isEmpty() -> fail("Không thấy mã số.\nĐưa thẻ vào khung cho rõ, bấm OK.")
+                else -> {
+                    topupMsg = "Đang chụp lần 2 để kiểm tra..."
+                    topupShoot("topup2.jpg") { c2 ->
+                        when {
+                            c2 == null -> fail("Chụp lỗi.\nBấm OK để chụp lại.")
+                            c1 != c2 -> fail("Hai lần đọc khác nhau, chưa nạp.\nGiữ thẻ thẳng, đủ sáng rồi bấm OK.")
+                            else -> { topupBusy = false; topupMsg = "Mã: $c1\nĐang nạp..."; dialTopUp(c1) }
+                        }
                     }
-                    .addOnFailureListener { topupBusy = false; topupMsg = "Không đọc được ảnh.\nBấm OK để chụp lại." }
-            } catch (_: Exception) { topupBusy = false; topupMsg = "Không đọc được ảnh.\nBấm OK để chụp lại." }
+                }
+            }
         }
     }
     fun aiExec(c: AiCmd) {
