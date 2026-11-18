@@ -419,6 +419,9 @@ fun Phone() {
     var lockAt by remember { mutableLongStateOf(0L) }
     var btOn by remember { mutableStateOf(false) }
     var dialerOn by remember { mutableStateOf(false) }
+    var dialPos by remember { mutableStateOf(0) }   // vị trí con trỏ trong ô số (0 = trước số đầu tiên)
+    fun dialIns(s: String) { val p = dialPos.coerceIn(0, dial.length); dial = dial.substring(0, p) + s + dial.substring(p); dialPos = p + s.length }
+    fun dialDel() { val p = dialPos.coerceIn(0, dial.length); if (p > 0) { dial = dial.removeRange(p - 1, p); dialPos = p - 1 } }   // xóa số ngay trước con trỏ
     var smsOn by remember { mutableStateOf(isDefaultSms(ctx)) }
     var wallPick by remember { mutableStateOf<Bitmap?>(null) }          // ảnh vừa chọn, đang xem thử trước khi đặt
     var wallFx by remember { mutableStateOf(0.5f) }
@@ -736,7 +739,7 @@ fun Phone() {
     }
     val tick = homeTick.intValue
     LaunchedEffect(tick) { if (tick > 0) { screen = if (NokiaState.openMenu) "menu" else "home"; NokiaState.openMenu = false; sel = 0 } }
-    LaunchedEffect(tick) { NokiaState.pendingDial?.let { dial = it; NokiaState.pendingDial = null; screen = "home"; sel = 0 } }
+    LaunchedEffect(tick) { NokiaState.pendingDial?.let { dial = it; dialPos = it.length; NokiaState.pendingDial = null; screen = "home"; sel = 0 } }
 
     fun freeformOn(): Boolean =
         ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
@@ -943,7 +946,7 @@ fun Phone() {
             ctx.getSharedPreferences("alarms", Context.MODE_PRIVATE).edit().clear().apply()
             ctx.getSharedPreferences("sound", Context.MODE_PRIVATE).edit().clear().apply()
             ctx.getSharedPreferences("sms_sent", Context.MODE_PRIVATE).edit().clear().apply()
-            locked = true; lockAt = 0L; screen = "home"; sel = 0; dial = ""
+            locked = true; lockAt = 0L; screen = "home"; sel = 0; dial = ""; dialPos = 0
         }
     }
 
@@ -1715,7 +1718,8 @@ fun Phone() {
             else -> 1 }
         when (k) {
             "UP", "LEFT" -> when (screen) {
-                "home" -> shortcut(if (k == "UP") "clock" else "calendar")      // ▲ Đồng hồ, ◀ Lịch
+                "home" -> if (k == "LEFT" && dial.isNotEmpty()) dialPos = maxOf(dialPos.coerceIn(0, dial.length) - 1, 0)   // đang có số: ◀ đưa con trỏ sang trái
+                    else shortcut(if (k == "UP") "clock" else "calendar")      // ▲ Đồng hồ, ◀ Lịch
                 "music" -> if (k == "LEFT") musicStep(-1) else sel = maxOf(sel - 1, 0)
                 "snake" -> snake.turn(if (k == "UP") 0 to -1 else -1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "UP") -APP_COLS else -1) else sel = maxOf(sel - 1, 0)
@@ -1735,7 +1739,8 @@ fun Phone() {
                 else -> sel = maxOf(sel - 1, 0)
             }
             "DOWN", "RIGHT" -> when (screen) {
-                "home" -> shortcut(if (k == "DOWN") "calc" else "camera")      // ▼ Máy tính, ▶ Máy ảnh
+                "home" -> if (k == "RIGHT" && dial.isNotEmpty()) dialPos = minOf(dialPos.coerceIn(0, dial.length) + 1, dial.length)   // đang có số: ▶ đưa con trỏ sang phải
+                    else shortcut(if (k == "DOWN") "calc" else "camera")      // ▼ Máy tính, ▶ Máy ảnh
                 "music" -> if (k == "RIGHT") musicStep(1) else sel = minOf(sel + 1, size - 1)
                 "snake" -> snake.turn(if (k == "DOWN") 0 to 1 else 1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "DOWN") APP_COLS else 1) else sel = minOf(sel + 1, size - 1)
@@ -1828,20 +1833,20 @@ fun Phone() {
                 "music" -> if (!audioPerms.all { granted(it) }) need(audioPerms) { loadTracks() }
                     else if (tracks.isNotEmpty()) { if (sel == mCur && Music.active) Music.toggle() else playTrack(sel) }
             }
-            "SOFTR" -> if (screen == "home") { if (dial.isNotEmpty()) dial = dial.dropLast(1) else shortcut("ai") }
+            "SOFTR" -> if (screen == "home") { if (dial.isNotEmpty()) dialDel() else shortcut("ai") }
                 else if (screen == "compose" && cStage == 0 && cTo.isNotEmpty()) { cTo = cTo.dropLast(1); cName = "" }
                 else if (screen == "compose" && cStage == 1 && entry.text.isNotEmpty()) entry.backspace()
                 else if (screen == "contacts" && entry.text.isNotEmpty()) { entry.backspace(); sel = 0 }
                 else back()
-            "END" -> if (screen == "home") dial = "" else open("home")
+            "END" -> if (screen == "home") { dial = ""; dialPos = 0 } else open("home")
             "CALL" -> when (screen) {
-                "home" -> if (dial.isNotEmpty()) { callNow(dial); dial = "" } else shortcut("calllog")   // gọi xong, về màn chờ số đã xóa hết   // chưa gõ số: phím gọi xanh mở Nhật ký
+                "home" -> if (dial.isNotEmpty()) { callNow(dial); dial = ""; dialPos = 0 } else shortcut("calllog")   // gọi xong, về màn chờ số đã xóa hết   // chưa gõ số: phím gọi xanh mở Nhật ký
                 "contacts" -> cShown.getOrNull(sel)?.let { callNow(it.number) }
                 "thread", "msgview" -> callNow(dialable(curAddr))
                 "calllog" -> calls.getOrNull(sel)?.let { callNow(it.number) }
             }
             else -> when (screen) {
-                "home" -> if (dial.length < 12) dial += k      // tối đa 12 số
+                "home" -> if (dial.length < 12) dialIns(k)      // tối đa 12 số, chèn tại con trỏ
                 "apps" -> if (k == "#") appsMode = 1 - appsMode   // # đổi Chữ / Icon
                 "snake" -> when (k) {
                     "2" -> snake.turn(0 to -1); "8" -> snake.turn(0 to 1)
@@ -1970,7 +1975,14 @@ fun Phone() {
                                         val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
                                         launchPkg(pkg, lb)
                                     }
-                                Text(dial.takeLast(12), Modifier.fillMaxWidth().padding(top = 28.dp), textAlign = TextAlign.Center, color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
+                                Row(Modifier.fillMaxWidth().padding(top = 28.dp), Arrangement.Center, Alignment.CenterVertically) {
+                                    val cp = dialPos.coerceIn(0, dial.length)
+                                    dial.forEachIndexed { i, ch ->
+                                        if (i == cp) Box(Modifier.width(4.dp).height(50.dp).background(homeInk))   // con trỏ
+                                        Text(ch.toString(), Modifier.clickable { dialPos = i + 1 }, color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1)
+                                    }
+                                    if (dial.isNotEmpty() && cp == dial.length) Box(Modifier.width(4.dp).height(50.dp).background(homeInk))
+                                }
                                 }
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
