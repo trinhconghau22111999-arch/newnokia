@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
+import android.telephony.PhoneNumberUtils
 import android.os.Looper
 import android.telecom.Call
 import android.telecom.PhoneAccountHandle
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +54,7 @@ class CallActivity : LcdActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setLcd(left = { leftLabel() }, right = { rightLabel() }) { CallLcd() }
+        setLcd(left = { leftLabel() }, right = { rightLabel() }, keyLeft = { keyLeftLabel() }) { CallLcd() }
     }
 
     // ------------------------------------------------------------ trạng thái
@@ -69,19 +71,28 @@ class CallActivity : LcdActivity() {
         }
     }
 
+    private fun spk(): String = if (CallHub.speakerOn()) "Loa trong" else "Loa ngoài"
+
     private fun leftLabel(): String = when (mode()) {
         M_RING -> "Nghe"
-        M_DIAL -> "Loa"
+        M_DIAL -> spk()
         M_PICK -> "Chọn"
-        M_ACTIVE -> if (menuOpen) "Chọn" else "Menu"
+        M_ACTIVE -> if (menuOpen) "Chọn" else spk()
         else -> ""
     }
 
     private fun rightLabel(): String = when (mode()) {
         M_RING -> "Từ chối"
         M_DIAL, M_PICK -> "Hủy"
-        M_ACTIVE -> if (menuOpen) "Về" else "Loa"
+        M_ACTIVE -> if (menuOpen) "Về" else if (CallHub.muted()) "Bật mic" else "Im lặng"
         else -> ""
+    }
+
+    /** Nhãn nút mềm trái trên bàn phím: khi đang gọi đây là nút bật/tắt loa (trước là nút "Menu"). */
+    private fun keyLeftLabel(): String = when (mode()) {
+        M_DIAL -> spk()
+        M_ACTIVE -> if (menuOpen) "Chọn" else spk()
+        else -> "Menu"
     }
 
     private fun accounts(): List<PhoneAccountHandle> = try {
@@ -129,8 +140,9 @@ class CallActivity : LcdActivity() {
             }
             M_ACTIVE -> if (menuOpen) menuKey(k, c) else when (k) {
                 "END" -> c.disconnect()
-                "SOFTL", "OK" -> { menuOpen = true; sel = 0 }
-                "SOFTR" -> CallHub.toggleSpeaker()
+                "SOFTL" -> CallHub.toggleSpeaker()          // nút "Menu" cũ nay là loa ngoài/trong
+                "OK" -> { menuOpen = true; sel = 0 }       // OK mở menu: giữ máy, ghi âm...
+                "SOFTR" -> CallHub.toggleMute()
                 else -> if (k.length == 1 && (k[0].isDigit() || k == "*" || k == "#")) dtmf(c, k[0])
             }
         }
@@ -217,15 +229,14 @@ class CallActivity : LcdActivity() {
         }
         val others = CallHub.calls.size - 1
         val blink = (now / 500) % 2 == 0L
+        val dots = ".".repeat(((now / 500) % 3).toInt() + 1)
 
         when (mode()) {
-            M_RING -> Column(Modifier.fillMaxSize()) {
-                Head("CUỘC GỌI ĐẾN")
-                Column(Modifier.weight(1f).fillMaxWidth().padding(4.dp), Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
-                    Box(Modifier.size(46.dp)) { if (blink) PhoneIcon(INK, false, Modifier.fillMaxSize()) }
-                    Who(name, number)
-                    Text("OK: tắt chuông", color = INK, fontFamily = MONO, fontSize = 12.sp)
+            M_RING -> Box(Modifier.fillMaxSize()) {
+                CallTop(name, number, "Cuộc gọi đến " + dots)
+                Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     if (others > 0) Text("(+$others cuộc gọi khác)", color = INK, fontFamily = MONO, fontSize = 12.sp)
+                    Text("OK: tắt chuông", color = INK, fontFamily = MONO, fontSize = 12.sp)
                 }
             }
             M_PICK -> {
@@ -240,14 +251,10 @@ class CallActivity : LcdActivity() {
                     }
                 }
             }
-            M_DIAL -> Column(Modifier.fillMaxSize()) {
-                Head(if (CallHub.stateOf(call) == Call.STATE_CONNECTING) "ĐANG KẾT NỐI" else "ĐANG GỌI")
-                Column(Modifier.weight(1f).fillMaxWidth().padding(4.dp), Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
-                    Who(name, number)
-                    Text(".".repeat(((now / 500) % 4).toInt() + 1), color = INK, fontFamily = MONO,
-                        fontWeight = FontWeight.Bold, fontSize = 30.sp)
-                    if (CallHub.speakerOn()) Text("Loa ngoài", color = INK, fontFamily = MONO, fontSize = 13.sp)
-                }
+            M_DIAL -> Box(Modifier.fillMaxSize()) {
+                CallTop(name, number, (if (CallHub.stateOf(call) == Call.STATE_CONNECTING) "Đang kết nối " else "Đang gọi ") + dots)
+                if (CallHub.speakerOn()) Text("LOA NGOÀI", Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
+                    color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
             M_ACTIVE -> if (menuOpen) Column(Modifier.fillMaxSize()) {
                 Head(name)
@@ -257,25 +264,59 @@ class CallActivity : LcdActivity() {
             } else {
                 val held = CallHub.stateOf(call) == Call.STATE_HOLDING
                 val t = call.details?.connectTimeMillis ?: 0L
+                val clock = if (t > 0) mmss((now - t).coerceAtLeast(0L)) else "0:00"
                 val flags = buildList {
                     if (CallHub.speakerOn()) add("LOA")
                     if (CallHub.muted()) add("MIC TẮT")
                     if (CallHub.recording) add(if (blink) "● GHI" else "○ GHI")
                 }.joinToString("  ")
-                Column(Modifier.fillMaxSize()) {
-                    Head(if (held) "ĐANG GIỮ" else "ĐANG NÓI CHUYỆN")
-                    Column(Modifier.weight(1f).fillMaxWidth().padding(4.dp), Arrangement.SpaceEvenly, Alignment.CenterHorizontally) {
-                        Who(name, number)
-                        Text(if (t > 0) mmss((now - t).coerceAtLeast(0L)) else "0:00", color = INK,
-                            fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 46.sp)
-                        Text(flags.ifEmpty { " " }, color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text(typed.ifEmpty { if (others > 0) "(+$others cuộc gọi khác)" else " " },
-                            color = INK, fontFamily = MONO, fontSize = 16.sp, maxLines = 1)
+                Box(Modifier.fillMaxSize()) {
+                    CallTop(name, number, if (held) "Đang giữ  $clock" else clock)
+                    Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (typed.isNotEmpty()) Text(typed, color = Color.White, fontFamily = MONO, fontSize = 18.sp, maxLines = 1)
+                        else if (others > 0) Text("(+$others cuộc gọi khác)", color = INK, fontFamily = MONO, fontSize = 12.sp)
+                        if (flags.isNotEmpty()) Text(flags, color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
             else -> EndView(null)
         }
+    }
+
+    /** Phần trên màn hình cuộc gọi: tên (lớn) / số điện thoại | quốc gia / trạng thái. Dùng chung cho gọi đi, gọi đến và đang nói. */
+    @Composable
+    private fun CallTop(name: String, number: String, status: String) {
+        val fmt = remember(number) { fmtNumber(number) }
+        val hasName = number.isNotEmpty() && name != number
+        val sub = listOfNotNull(fmt.takeIf { hasName && it.isNotEmpty() }, regionOf(number).takeIf { it.isNotEmpty() }).joinToString("  |  ")
+        Column(Modifier.fillMaxWidth().padding(top = 18.dp, start = 4.dp, end = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(if (hasName || fmt.isEmpty()) name else fmt, color = Color.White, fontFamily = MONO, fontWeight = FontWeight.Bold,
+                fontSize = 34.sp, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (sub.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(sub, color = INK, fontFamily = MONO, fontSize = 15.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(status, color = Color.White, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = TextAlign.Center, maxLines = 1)
+        }
+    }
+
+    /** Số điện thoại có khoảng trắng cho dễ đọc, vd 0946 445 752. */
+    private fun fmtNumber(n: String): String =
+        if (n.isEmpty()) "" else try { PhoneNumberUtils.formatNumber(n, "VN") ?: n } catch (_: Exception) { n }
+
+    /** Quốc gia/vùng suy ra từ đầu số (số trong nước 0xxx = Việt Nam). Số ngắn như 113, 1900... không hiện. */
+    private fun regionOf(n: String): String {
+        val d = n.filter { it.isDigit() || it == '+' }
+        if (d.isEmpty()) return ""
+        if (d.startsWith("+")) {
+            val m = listOf("+84" to "Việt Nam", "+855" to "Campuchia", "+856" to "Lào", "+66" to "Thái Lan", "+65" to "Singapore",
+                "+60" to "Malaysia", "+62" to "Indonesia", "+63" to "Philippines", "+81" to "Nhật Bản", "+82" to "Hàn Quốc",
+                "+86" to "Trung Quốc", "+886" to "Đài Loan", "+852" to "Hồng Kông", "+61" to "Úc", "+44" to "Anh",
+                "+33" to "Pháp", "+49" to "Đức", "+7" to "Nga", "+1" to "Hoa Kỳ / Canada")
+            return m.firstOrNull { d.startsWith(it.first) }?.second.orEmpty()
+        }
+        return if (d.length >= 9 && d.startsWith("0")) "Việt Nam" else ""
     }
 
     @Composable

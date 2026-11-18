@@ -68,8 +68,8 @@ abstract class LcdActivity : ComponentActivity() {
         split = isInMultiWindowMode
     }
 
-    protected fun setLcd(left: () -> String, right: () -> String, lcd: @Composable BoxScope.() -> Unit) {
-        setContent { NokiaFrame(left(), right(), split, { k -> onKey(k) }, lcd) }
+    protected fun setLcd(left: () -> String, right: () -> String, keyLeft: () -> String = { "Menu" }, lcd: @Composable BoxScope.() -> Unit) {
+        setContent { NokiaFrame(left(), right(), split, { k -> onKey(k) }, lcd, keyLeft()) }
     }
 
     protected fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
@@ -111,7 +111,7 @@ abstract class LcdActivity : ComponentActivity() {
 @Composable
 fun NokiaFrame(
     left: String, right: String, split: Boolean,
-    press: (String) -> Unit, lcd: @Composable BoxScope.() -> Unit
+    press: (String) -> Unit, lcd: @Composable BoxScope.() -> Unit, keyLeft: String = "Menu"
 ) {
     val focus = remember { FocusRequester() }
     val haptic = LocalHapticFeedback.current
@@ -162,7 +162,7 @@ fun NokiaFrame(
         Box(Modifier.fillMaxWidth().height(6.dp).background(INK))
         if (!split) {
             Spacer(Modifier.height(6.dp))
-            Keys(p)
+            Keys(p, keyLeft)
         }
     }
 }

@@ -2308,7 +2308,7 @@ fun NumKey(d: String, sub: String, mod: Modifier, onClick: () -> Unit) {
 }
 
 @Composable
-fun ColumnScope.Keys(p: (String) -> Unit) {
+fun ColumnScope.Keys(p: (String) -> Unit, leftLabel: String = "Menu") {
     val dk = Color(0xFF16398F)
     // Bố cục như Nokia thật: phím mềm (cao) ở trên, Gọi/Tắt (thấp) ở dưới, D-pad tròn ở giữa.
     BoxWithConstraints(Modifier.fillMaxWidth().weight(0.27f).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
@@ -2316,7 +2316,7 @@ fun ColumnScope.Keys(p: (String) -> Unit) {
         val c = s / 3
         Row(Modifier.fillMaxWidth().height(s)) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), onClick = { p("SOFTL") }) { Glyph("Menu", 20) }
+                K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), onClick = { p("SOFTL") }) { Glyph(leftLabel, if (leftLabel.length > 5) 14 else 20) }
                 K(Modifier.fillMaxWidth().height(s * 0.336f), shape = ChamferShape(14.dp), edge = GREEN, onClick = { p("CALL") }) {
                     PhoneIcon(GREEN, false, Modifier.size(31.dp))
                 }
