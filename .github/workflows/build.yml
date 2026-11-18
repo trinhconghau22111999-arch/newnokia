@@ -25,7 +25,8 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/phonecuibap.jks"
             echo "KEYSTORE_PATH=$RUNNER_TEMP/phonecuibap.jks" >> "$GITHUB_ENV"
           else
-            echo "::warning::Chưa có secret KEYSTORE_B64 - build sẽ ký bằng khóa debug ngẫu nhiên, không cài đè được"
+            echo "::error::Chưa có secret KEYSTORE_B64 - không build để tránh ra APK ký khóa ngẫu nhiên (không cài đè được)"
+            exit 1
           fi
       - name: Build release APK
         env:
