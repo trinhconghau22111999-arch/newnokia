@@ -418,6 +418,18 @@ fun Phone() {
     var power by remember { mutableStateOf(PowerStore.load(ctx)) }
     var pEdit by remember { mutableIntStateOf(0) }          // 0 = giờ tắt, 1 = giờ bật
     var settingsSel by remember { mutableIntStateOf(0) }    // nhớ mục đang chọn khi quay lại Cài đặt
+    val uiPrefs = ctx.getSharedPreferences("ui", Context.MODE_PRIVATE)
+    var pins by remember { mutableStateOf(uiPrefs.getString("pins", "")!!.split("|").filter { it.isNotEmpty() }) }   // icon ghim ở màn hình chờ (tối đa MAX_PINS)
+    var pinApp by remember { mutableStateOf<AppInfo?>(null) }                                                         // app đang hỏi ghim/bỏ ghim
+    fun togglePin(a: AppInfo) {
+        val cur = pins
+        if (a.pkg in cur) pins = cur - a.pkg
+        else if (cur.size >= MAX_PINS) { Toast.makeText(ctx, "Danh sách đầy (tối đa $MAX_PINS icon)", Toast.LENGTH_SHORT).show(); pinApp = null; return }
+        else pins = cur + a.pkg
+        uiPrefs.edit().putString("pins", pins.joinToString("|")).apply()
+        pinApp = null
+    }
+    LaunchedEffect(screen) { pinApp = null }
     var appMenuOn by remember { mutableStateOf(ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).getBoolean("app_menu", false)) }   // công tắc "Menu ứng dụng (trên máy)", mặc định TẮT
     val menuItems = if (appMenuOn) MENU + ("Menu ứng dụng" to "apps") else MENU
     var volTick by remember { mutableIntStateOf(0) }
@@ -1555,6 +1567,7 @@ fun Phone() {
 
     fun press(k: String) {
         if (buzz) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        pinApp?.let { a -> when (k) { "OK", "SOFTL" -> togglePin(a); "END", "SOFTR" -> pinApp = null }; return }
         if (k == "END" && !locked) {   // bấm phím Tắt 2 lần liên tiếp: lần 1 về màn hình chờ, lần 2 khóa màn hình của app
             val t = SystemClock.uptimeMillis()
             val dbl = t - endAt < 600
@@ -1894,6 +1907,7 @@ fun Phone() {
                             vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 2.dp)) {
                         when (screen) {
                             "home" -> Column(Modifier.fillMaxSize(), Arrangement.SpaceBetween, Alignment.CenterHorizontally) {
+                                Column(Modifier.fillMaxWidth()) {
                                 Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                                     horizontalAlignment = Alignment.Start) {
                                     Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
@@ -1903,6 +1917,11 @@ fun Phone() {
                                     Text(now.take(5), Modifier.clickable { shortcut("clock") }, color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     Text(dateNow().uppercase(), Modifier.clickable { shortcut("calendar") }, color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
+                                }
+                                    PinnedIcons(pins.filter { ctx.packageManager.getLaunchIntentForPackage(it) != null }) { pkg ->
+                                        val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
+                                        launchPkg(pkg, lb)
+                                    }
                                 }
                                 Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
@@ -1922,7 +1941,11 @@ fun Phone() {
                                 remotePane?.let { HostView(it.view) }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel, "Nói lệnh cho TV")
                             }
-                            "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll)
+                            "apps" -> AppsScreen(apps, appsMode, sel, { appsMode = it }, tapItem, scroll,
+                                onLong = { i -> apps.getOrNull(i)?.let { a -> sel = i
+                                    if (a.pkg !in pins && pins.size >= MAX_PINS) Toast.makeText(ctx, "Danh sách đầy (tối đa $MAX_PINS icon)", Toast.LENGTH_SHORT).show()
+                                    else pinApp = a } },
+                                pinApp = pinApp, pinned = pinApp?.let { it.pkg in pins } == true, onPinConfirm = { pinApp?.let { togglePin(it) } }, onPinCancel = { pinApp = null })
                             "clock" -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(now, Modifier.padding(top = 16.dp), color = INK, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                 Text(dateNow(), color = INK, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)

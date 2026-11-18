@@ -7,6 +7,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -43,6 +48,9 @@ import kotlinx.coroutines.withContext
 /** Số icon trên một hàng ở chế độ bảng icon. */
 const val APP_COLS = 4
 
+/** Số icon ghim tối đa ở màn hình chờ. */
+const val MAX_PINS = 8
+
 /** Icon app nạp theo nhu cầu (chỉ ô đang hiện), giữ tối đa 48 icon nhỏ; xóa sạch khi rời màn hình Ứng dụng. */
 object AppIcons {
     private val cache = LruCache<String, ImageBitmap>(48)
@@ -64,8 +72,11 @@ object AppIcons {
 @Composable
 fun AppsScreen(
     apps: List<AppInfo>, mode: Int, sel: Int,
-    onMode: (Int) -> Unit, onTap: (Int) -> Unit, onScroll: (Int) -> Unit
+    onMode: (Int) -> Unit, onTap: (Int) -> Unit, onScroll: (Int) -> Unit,
+    onLong: (Int) -> Unit = {}, pinApp: AppInfo? = null, pinned: Boolean = false,
+    onPinConfirm: () -> Unit = {}, onPinCancel: () -> Unit = {}
 ) {
+  Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth()) {
             listOf("Chữ", "Icon").forEachIndexed { i, t ->
@@ -78,12 +89,27 @@ fun AppsScreen(
         Spacer(Modifier.height(4.dp))
         if (mode == 0) Box(Modifier.weight(1f)) {
             Lines(apps.map { it.label }.ifEmpty { listOf("(trống)") }, sel, onTap, onScroll)
-        } else IconGrid(apps, sel, onTap)
+        } else IconGrid(apps, sel, onTap, onLong)
     }
+    if (pinApp != null) Box(Modifier.fillMaxSize().background(INK.copy(alpha = 0.45f)).clickable { onPinCancel() }, contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(24.dp).border(2.dp, INK).background(LCD).clickable(enabled = false) {}.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(pinApp.label, color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(8.dp))
+            Box(Modifier.fillMaxWidth().background(INK).clickable { onPinConfirm() }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                Text(if (pinned) "Bỏ ghim khỏi màn hình chính" else "Ghim vào màn hình chính", color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.fillMaxWidth().border(1.dp, INK).clickable { onPinCancel() }.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                Text("Hủy", color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+        }
+    }
+  }
 }
 
 @Composable
-private fun ColumnScope.IconGrid(apps: List<AppInfo>, sel: Int, onTap: (Int) -> Unit) {
+private fun ColumnScope.IconGrid(apps: List<AppInfo>, sel: Int, onTap: (Int) -> Unit, onLong: (Int) -> Unit) {
     val ctx = LocalContext.current
     val state = rememberLazyGridState()
     // Cuộn theo ô đang chọn khi di chuyển bằng phím
@@ -105,7 +131,15 @@ private fun ColumnScope.IconGrid(apps: List<AppInfo>, sel: Int, onTap: (Int) -> 
             }
             Box(Modifier.aspectRatio(1f).padding(3.dp)
                 .then(if (i == sel) Modifier.background(INK) else Modifier.border(1.dp, INK))
-                .clickable { onTap(i) }.padding(6.dp), contentAlignment = Alignment.Center) {
+                .pointerInput(a.pkg) {   // chạm = mở, giữ 2 giây = hỏi ghim ra màn hình chính
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var long = false
+                        val up = try { withTimeout(2000L) { waitForUpOrCancellation() } }
+                            catch (_: PointerEventTimeoutCancellationException) { long = true; null }
+                        if (long) { onLong(i); waitForUpOrCancellation() } else if (up != null) onTap(i)
+                    }
+                }.padding(6.dp), contentAlignment = Alignment.Center) {
                 icon?.let { Image(it, null, Modifier.fillMaxSize()) }
             }
         }
@@ -114,4 +148,26 @@ private fun ColumnScope.IconGrid(apps: List<AppInfo>, sel: Int, onTap: (Int) -> 
     Text(apps.getOrNull(sel)?.label ?: "", Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
         color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 13.sp,
         maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+}
+
+/** Icon app đã ghim ở màn hình chờ (dưới khung ngày giờ): tối đa 8 icon, 4 icon một hàng, chạm để mở. */
+@Composable
+fun PinnedIcons(pkgs: List<String>, onOpen: (String) -> Unit) {
+    val ctx = LocalContext.current
+    if (pkgs.isEmpty()) return
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        pkgs.take(MAX_PINS).chunked(APP_COLS).forEach { row ->
+            Row(Modifier.fillMaxWidth()) {
+                row.forEach { pkg ->
+                    val icon by produceState<ImageBitmap?>(AppIcons.get(pkg), pkg) {
+                        if (value == null) value = withContext(Dispatchers.IO) { AppIcons.load(ctx, pkg) }
+                    }
+                    Box(Modifier.weight(1f).aspectRatio(1f).padding(4.dp).clickable { onOpen(pkg) }, contentAlignment = Alignment.Center) {
+                        icon?.let { Image(it, null, Modifier.fillMaxSize()) }
+                    }
+                }
+                repeat(APP_COLS - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
 }
