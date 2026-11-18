@@ -2308,7 +2308,7 @@ fun NumKey(d: String, sub: String, mod: Modifier, onClick: () -> Unit) {
 }
 
 @Composable
-fun ColumnScope.Keys(p: (String) -> Unit, leftLabel: String = "Menu") {
+fun ColumnScope.Keys(leftLabel: String = "Menu", p: (String) -> Unit) {
     val dk = Color(0xFF16398F)
     // Bố cục như Nokia thật: phím mềm (cao) ở trên, Gọi/Tắt (thấp) ở dưới, D-pad tròn ở giữa.
     BoxWithConstraints(Modifier.fillMaxWidth().weight(0.27f).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {

@@ -162,7 +162,7 @@ fun NokiaFrame(
         Box(Modifier.fillMaxWidth().height(6.dp).background(INK))
         if (!split) {
             Spacer(Modifier.height(6.dp))
-            Keys(p, keyLeft)
+            Keys(keyLeft, p)
         }
     }
 }
