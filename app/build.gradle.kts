@@ -61,4 +61,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-database")
     implementation("io.github.webrtc-sdk:android:125.6422.06.1")
+
+    // Nạp thẻ cào: đọc mã số trên ảnh thẻ (chạy trên máy)
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
