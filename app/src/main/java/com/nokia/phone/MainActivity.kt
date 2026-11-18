@@ -781,8 +781,8 @@ fun Phone() {
         try {
             ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(opts, 5)
         } catch (_: Throwable) {}
-        // MULTIPLE_TASK: tạo task mới để khung được áp dụng ngay cả khi app đang chạy toàn màn hình
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+        // Chỉ NEW_TASK (không MULTIPLE_TASK): app đang chạy thì đưa lại task cũ lên, không đẻ thêm trang mới mỗi lần vào lại
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             ctx.startActivity(i, opts.toBundle())
         } catch (_: Throwable) {
