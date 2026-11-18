@@ -1718,8 +1718,8 @@ fun Phone() {
             else -> 1 }
         when (k) {
             "UP", "LEFT" -> when (screen) {
-                "home" -> if (k == "LEFT" && dial.isNotEmpty()) dialPos = maxOf(dialPos.coerceIn(0, dial.length) - 1, 0)   // đang có số: ◀ đưa con trỏ sang trái
-                    else shortcut(if (k == "UP") "clock" else "calendar")      // ▲ Đồng hồ, ◀ Lịch
+                "home" -> if (dial.isNotEmpty()) { if (k == "LEFT") dialPos = maxOf(dialPos.coerceIn(0, dial.length) - 1, 0) }   // đang nhập số: ▲ không làm gì, ◀ đưa con trỏ sang trái
+                else shortcut(if (k == "UP") "clock" else "calendar")      // chưa nhập số: ▲ Đồng hồ, ◀ Lịch
                 "music" -> if (k == "LEFT") musicStep(-1) else sel = maxOf(sel - 1, 0)
                 "snake" -> snake.turn(if (k == "UP") 0 to -1 else -1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "UP") -APP_COLS else -1) else sel = maxOf(sel - 1, 0)
@@ -1739,8 +1739,8 @@ fun Phone() {
                 else -> sel = maxOf(sel - 1, 0)
             }
             "DOWN", "RIGHT" -> when (screen) {
-                "home" -> if (k == "RIGHT" && dial.isNotEmpty()) dialPos = minOf(dialPos.coerceIn(0, dial.length) + 1, dial.length)   // đang có số: ▶ đưa con trỏ sang phải
-                    else shortcut(if (k == "DOWN") "calc" else "camera")      // ▼ Máy tính, ▶ Máy ảnh
+                "home" -> if (dial.isNotEmpty()) { if (k == "RIGHT") dialPos = minOf(dialPos.coerceIn(0, dial.length) + 1, dial.length) }   // đang nhập số: ▼ không làm gì, ▶ đưa con trỏ sang phải
+                else shortcut(if (k == "DOWN") "calc" else "camera")      // chưa nhập số: ▼ Máy tính, ▶ Máy ảnh
                 "music" -> if (k == "RIGHT") musicStep(1) else sel = minOf(sel + 1, size - 1)
                 "snake" -> snake.turn(if (k == "DOWN") 0 to 1 else 1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "DOWN") APP_COLS else 1) else sel = minOf(sel + 1, size - 1)
