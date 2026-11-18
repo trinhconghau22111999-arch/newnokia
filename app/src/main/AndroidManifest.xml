@@ -110,7 +110,6 @@
             android:name=".CallActivity"
             android:exported="false"
             android:launchMode="singleTask"
-            android:taskAffinity="com.nokia.phone.call"
             android:excludeFromRecents="true"
             android:resizeableActivity="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|density|uiMode|fontScale"
