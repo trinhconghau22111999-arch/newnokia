@@ -1406,11 +1406,18 @@ fun Phone() {
     }
     /** Nạp thẻ: ghép *100*số# rồi gọi luôn, không cần bấm thêm. */
     fun dialTopUp(code: String) {
-        val full = "*100*" + code + "#"
+        val full = TopUpCode.get(ctx) + code + "#"
         aiFinish()
         dial = full; dialPos = full.length
         callNow(full)
         dial = ""; dialPos = 0
+    }
+    /** Đổi mã nạp thẻ (ví dụ 110 -> *110*), lưu lại và báo kết quả. */
+    fun setTopUp(code: String) {
+        if (code.isEmpty()) { aiFinish("Chưa nghe rõ mã nạp thẻ.\nVí dụ: đổi mã nạp thẻ thành một một không"); return }
+        val prefix = "*" + code + "*"
+        TopUpCode.set(ctx, prefix)
+        aiFinish("Đã đổi mã nạp thẻ thành $prefix")
     }
     fun aiExec(c: AiCmd) {
         aiState = 4; aiMsg = ""
@@ -1469,6 +1476,7 @@ fun Phone() {
             is AiCmd.Lock -> { open("home"); locked = true; lockAt = 0L }
             is AiCmd.Time -> { val cal = Calendar.getInstance(); aiFinish("Bây giờ là ${cal.get(Calendar.HOUR_OF_DAY)} giờ ${cal.get(Calendar.MINUTE)} phút") }
             is AiCmd.Date -> aiFinish("Hôm nay là " + dateNow())
+            is AiCmd.SetTopUp -> setTopUp(c.code)
             is AiCmd.TopUp -> if (c.code.isNotEmpty()) dialTopUp(c.code) else { aiTopUp = true; aiTopUpTick++ }
             is AiCmd.Help -> aiMsg = ""     // hiện lại danh sách câu ví dụ
             is AiCmd.Cancel -> aiFinish()

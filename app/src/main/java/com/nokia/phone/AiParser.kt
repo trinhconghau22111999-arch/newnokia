@@ -14,6 +14,8 @@ sealed class AiCmd {
     data class Sms(val target: String, val number: String, val body: String) : AiCmd()
     /** Nạp thẻ: code = số thẻ đọc kèm câu lệnh; rỗng = app sẽ hỏi số thẻ rồi tự gọi *100*số# */
     data class TopUp(val code: String) : AiCmd()
+    /** Đổi mã nạp thẻ: code = các chữ số đọc ra, ví dụ "110" cho *110* */
+    data class SetTopUp(val code: String) : AiCmd()
     data class Camera(val selfie: Boolean, val shoot: Boolean) : AiCmd()
     object Gallery : AiCmd()
     /** query đã bỏ dấu; "" = phát một bài bất kỳ. */
@@ -159,6 +161,13 @@ object AiParser {
         if (has("giup do", "huong dan", "lam duoc gi", "biet lam gi", "tro giup", "co the lam gi")) return AiCmd.Help
 
         // ---- Nhắn tin
+        // ---- Doi ma nap the thanh ... (phải đứng trước lệnh nạp thẻ)
+        if (has("doi ma nap", "ma nap the")) {
+            val ti = n.indexOf("thanh")
+            val tail = if (ti >= 0) n.subList(ti + 1, n.size) else emptyList()
+            return AiCmd.SetTopUp(numTokens(tail).joinToString("") { it.filter { c -> c.isDigit() } })
+        }
+
         // ---- Nap the / nap tien (doc luon so the neu co trong cau)
         val topAt = n.indices.firstOrNull { i -> n[i] == "nap" && n.getOrNull(i + 1) in setOf("the", "tien", "card", "cuoc") }
         if (topAt != null) return AiCmd.TopUp(spokenNumber(numTokens(n.subList(topAt + 2, n.size))))
