@@ -47,6 +47,25 @@ class KeypadActivity : ComponentActivity() {
         setContent { KeypadScreen { k -> send(k) } }
     }
 
+    private fun hideNav() {
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.navigationBars())
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        hideNav()
+        window.decorView.post { hideNav() }
+        window.decorView.postDelayed({ hideNav() }, 300)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        hideNav()
+    }
+
     private fun send(k: String) {
         when {
             NokiaState.lcdResumed -> NokiaState.listener?.invoke(k)      // nửa trên đang là màn hình LCD Nokia

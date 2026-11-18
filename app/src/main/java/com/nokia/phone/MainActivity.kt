@@ -212,6 +212,14 @@ class MainActivity : ComponentActivity() {
         if (hasFocus) hideBars()
     }
 
+    // Vào app/quay lại app: hệ thống đôi khi bật thanh điều hướng sau khi cửa sổ dựng xong -> ẩn lại ngay và thêm lần trễ
+    override fun onStart() {
+        super.onStart()
+        hideBars()
+        window.decorView.post { hideBars() }
+        window.decorView.postDelayed({ hideBars() }, 300)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra("menu", false)) NokiaState.openMenu = true
@@ -221,6 +229,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        hideBars()
         NokiaState.lcdResumed = true
         UsageTracker.resume()
         Sound.applyPending(this)

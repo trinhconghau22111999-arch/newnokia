@@ -87,6 +87,14 @@ abstract class LcdActivity : ComponentActivity() {
         if (hasFocus) hideBars()
     }
 
+    // Vào app/quay lại app: hệ thống đôi khi bật thanh điều hướng sau khi cửa sổ dựng xong -> ẩn lại ngay và thêm lần trễ
+    override fun onStart() {
+        super.onStart()
+        hideBars()
+        window.decorView.post { hideBars() }
+        window.decorView.postDelayed({ hideBars() }, 300)
+    }
+
     override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
         split = isInMultiWindowMode
@@ -94,6 +102,7 @@ abstract class LcdActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        hideBars()
         // Nhận phím từ KeypadActivity khi đang chia đôi màn hình
         prevListener = NokiaState.listener
         NokiaState.listener = { k -> onKey(k) }
