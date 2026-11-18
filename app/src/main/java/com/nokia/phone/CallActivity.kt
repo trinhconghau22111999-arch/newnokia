@@ -11,6 +11,11 @@ import android.telecom.Call
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.clipToBounds
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -61,7 +66,7 @@ class CallActivity : LcdActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setLcd(left = { leftLabel() }, right = { rightLabel() }, keyLeft = { keyLeftLabel() }) { CallLcd() }
+        setLcd(left = { leftLabel() }, right = { rightLabel() }, keyLeft = { keyLeftLabel() }) { LcdSlideIn { CallLcd() } }
     }
 
     // ------------------------------------------------------------ trạng thái
@@ -207,6 +212,24 @@ class CallActivity : LcdActivity() {
     }
 
     // ------------------------------------------------------------ giao diện LCD
+
+    /**
+     * Chỉ phần LCD phía trên trượt vào từ bên phải khi bắt đầu gọi; bàn phím bên dưới đứng yên.
+     * Nội dung được cắt trong khung LCD nên không tràn xuống phím.
+     */
+    @Composable
+    private fun BoxScope.LcdSlideIn(content: @Composable BoxScope.() -> Unit) {
+        var shown by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown = true }
+        Box(Modifier.matchParentSize().clipToBounds()) {
+            AnimatedVisibility(
+                visible = shown,
+                enter = slideInHorizontally(animationSpec = tween(220), initialOffsetX = { it }) + fadeIn(tween(220))
+            ) {
+                Box(Modifier.fillMaxSize(), content = content)
+            }
+        }
+    }
 
     @Composable
     private fun CallLcd() {
