@@ -1893,7 +1893,7 @@ fun Phone() {
                         .padding(horizontal = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 6.dp,
                             vertical = if ((screen == "camera" && camOk) || screen == "youtube" || screen == "tv" || screen == "remote") 0.dp else 2.dp)) {
                         when (screen) {
-                            "home" -> Column(Modifier.fillMaxSize().clickable { press("OK") }, Arrangement.SpaceBetween, Alignment.CenterHorizontally) {
+                            "home" -> Column(Modifier.fillMaxSize(), Arrangement.SpaceBetween, Alignment.CenterHorizontally) {
                                 Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                                     horizontalAlignment = Alignment.Start) {
                                     Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
