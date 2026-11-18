@@ -12,6 +12,8 @@ sealed class AiCmd {
     data class Call(val target: String, val number: String) : AiCmd()
     /** body rỗng = chỉ mở màn hình soạn tin tới người đó. */
     data class Sms(val target: String, val number: String, val body: String) : AiCmd()
+    /** Nạp thẻ: code = số thẻ đọc kèm câu lệnh; rỗng = app sẽ hỏi số thẻ rồi tự gọi *100*số# */
+    data class TopUp(val code: String) : AiCmd()
     data class Camera(val selfie: Boolean, val shoot: Boolean) : AiCmd()
     object Gallery : AiCmd()
     /** query đã bỏ dấu; "" = phát một bài bất kỳ. */
@@ -135,6 +137,12 @@ object AiParser {
         return out
     }
 
+    /** Doc so the nap tu mot cau noi (chi lay chu so). Rong neu khong co it nhat 3 so. */
+    fun cardDigits(text: String): String {
+        val t = text.trim().split(Regex("\\s+")).map { aiNorm(it).filter { c -> c.isLetterOrDigit() } }.filter { it.isNotEmpty() }
+        return spokenNumber(numTokens(t))
+    }
+
     fun parse(text: String, now: Calendar = Calendar.getInstance()): AiCmd {
         val words = ArrayList<String>()   // từ gốc (giữ dấu) để hiển thị / làm nội dung tin
         val n = ArrayList<String>()       // từ đã bỏ dấu, bỏ dấu câu
@@ -151,6 +159,10 @@ object AiParser {
         if (has("giup do", "huong dan", "lam duoc gi", "biet lam gi", "tro giup", "co the lam gi")) return AiCmd.Help
 
         // ---- Nhắn tin
+        // ---- Nap the / nap tien (doc luon so the neu co trong cau)
+        val topAt = n.indices.firstOrNull { i -> n[i] == "nap" && n.getOrNull(i + 1) in setOf("the", "tien", "card", "cuoc") }
+        if (topAt != null) return AiCmd.TopUp(spokenNumber(numTokens(n.subList(topAt + 2, n.size))))
+
         val smsAt = n.indices.firstOrNull { i ->
             val nx = n.getOrNull(i + 1)
             (n[i] == "nhan" && nx in SMS_NEXT) ||

@@ -541,6 +541,8 @@ fun Phone() {
     var endAt by remember { mutableStateOf(0L) }                       // lần bấm phím Tắt (đỏ) gần nhất, để nhận biết bấm 2 lần = khóa màn hình của app
     var aiOpenedAt by remember { mutableStateOf(0L) }                  // lúc mở màn hình AI, để nhận biết bấm ← 2 lần liên tiếp
     var aiHeard by remember { mutableStateOf("") }
+    var aiTopUp by remember { mutableStateOf(false) }          // đang chờ đọc số thẻ để nạp
+    var aiTopUpTick by remember { mutableIntStateOf(0) }       // tăng mỗi lần cần bắt đầu nghe số thẻ
     var aiMsg by remember { mutableStateOf("") }
     var aiLevel by remember { mutableFloatStateOf(0f) }
     var aiKind by remember { mutableIntStateOf(1) }                    // 1 gọi, 2 gửi tin, 3 soẩn tin
@@ -1402,6 +1404,14 @@ fun Phone() {
             }
         }
     }
+    /** Nạp thẻ: ghép *100*số# rồi gọi luôn, không cần bấm thêm. */
+    fun dialTopUp(code: String) {
+        val full = "*100*" + code + "#"
+        aiFinish()
+        dial = full; dialPos = full.length
+        callNow(full)
+        dial = ""; dialPos = 0
+    }
     fun aiExec(c: AiCmd) {
         aiState = 4; aiMsg = ""
         when (c) {
@@ -1459,6 +1469,7 @@ fun Phone() {
             is AiCmd.Lock -> { open("home"); locked = true; lockAt = 0L }
             is AiCmd.Time -> { val cal = Calendar.getInstance(); aiFinish("Bây giờ là ${cal.get(Calendar.HOUR_OF_DAY)} giờ ${cal.get(Calendar.MINUTE)} phút") }
             is AiCmd.Date -> aiFinish("Hôm nay là " + dateNow())
+            is AiCmd.TopUp -> if (c.code.isNotEmpty()) dialTopUp(c.code) else { aiTopUp = true; aiTopUpTick++ }
             is AiCmd.Help -> aiMsg = ""     // hiện lại danh sách câu ví dụ
             is AiCmd.Cancel -> aiFinish()
             is AiCmd.Unknown -> aiMsg = "Chưa hiểu lệnh này.\nHãy nói rõ hơn, ví dụ:\n\"gọi cho mẹ\""
@@ -1468,6 +1479,12 @@ fun Phone() {
         val heard = list.filter { it.isNotBlank() }
         if (heard.isEmpty()) { aiState = 4; aiMsg = "Không nghe rõ.\nBấm Nói để thử lại."; return }
         // Thử lần lượt các cách nghe của bộ nhận dẩng, lấy cách đầu tiên hiểu được
+        if (aiTopUp) {
+            aiTopUp = false
+            val code = heard.firstNotNullOfOrNull { AiParser.cardDigits(it).takeIf { c -> c.isNotEmpty() } } ?: ""
+            if (code.isEmpty()) { aiState = 4; aiMsg = "Không nghe rõ số thẻ.\nBấm Nói để thử lại."; return }
+            dialTopUp(code); return
+        }
         val parsed = heard.map { it to AiParser.parse(it) }
         val best = parsed.firstOrNull { it.second !is AiCmd.Unknown } ?: parsed.first()
         aiHeard = best.first
@@ -1476,14 +1493,15 @@ fun Phone() {
         if (cmd is AiCmd.Unknown || cmd is AiCmd.OpenApp) heard.firstNotNullOfOrNull { TvChannels.find(ctx, it) }?.let { cmd = AiCmd.Tv(it) }
         aiExec(cmd)
     }
-    fun aiListen() {
+    fun aiListen(topUp: Boolean = false) {
+        aiTopUp = topUp
         if (!voice.available()) {
             aiState = 4; aiMsg = "Máy chưa có dịch vụ nhận dẩng giọng nói\n(cần app Google)"
             return
         }
         aiState = 4; aiMsg = "Cần quyền Micro để nghe"
         need(listOf(Manifest.permission.RECORD_AUDIO)) {
-            aiState = 1; aiHeard = ""; aiMsg = ""; aiLevel = 0f
+            aiState = 1; aiHeard = ""; aiMsg = if (topUp) "Đọc số thẻ cần nạp" else ""; aiLevel = 0f
             voice.start(
                 onPartial = { aiHeard = it },
                 onLevel = { aiLevel = it },
@@ -1493,6 +1511,7 @@ fun Phone() {
         }
     }
     /** Nút AI trong YouTube: nghe giọng nói rồi CHỈ tìm kiếm bên trong YouTube (không mở app/gọi điện như AI ngoài). */
+    LaunchedEffect(aiTopUpTick) { if (aiTopUpTick > 0) aiListen(topUp = true) }
     fun ytListen() {
         if (!voice.available()) { Toast.makeText(ctx, "Máy chưa có dịch vụ nhận dẩng giọng nói", Toast.LENGTH_LONG).show(); return }
         need(listOf(Manifest.permission.RECORD_AUDIO)) {
@@ -1979,7 +1998,7 @@ fun Phone() {
                                     val cp = dialPos.coerceIn(0, dial.length)
                                     dial.forEachIndexed { i, ch ->
                                         if (i == cp) Box(Modifier.width(4.dp).height(50.dp).background(homeInk))   // con trỏ
-                                        Text(ch.toString(), Modifier.clickable { dialPos = i + 1 }, color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1)
+                                        Text(ch.toString(), Modifier.clickable { dialPos = i + 1 }, color = homeInk, style = homeSh, fontSize = if (dial.length > 12) 24.sp else 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1)
                                     }
                                     if (dial.isNotEmpty() && cp == dial.length) Box(Modifier.width(4.dp).height(50.dp).background(homeInk))
                                 }
