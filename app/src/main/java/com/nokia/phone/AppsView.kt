@@ -192,7 +192,7 @@ fun PinnedIcons(pkgs: List<String>, onOpen: (String) -> Unit) {
                         if (value == null) value = withContext(Dispatchers.IO) { PinIcons.load(ctx, pkg) }
                     }
                     Box(Modifier.weight(1f).aspectRatio(1f).padding(4.dp).clickable { onOpen(pkg) }, contentAlignment = Alignment.Center) {
-                        icon?.let { Image(it, null, Modifier.fillMaxSize()) }
+                        icon?.let { Image(it, null, Modifier.fillMaxSize(0.8f)) }   // icon thu nhỏ còn 80% ô
                     }
                 }
                 repeat(APP_COLS - row.size) { Spacer(Modifier.weight(1f)) }
