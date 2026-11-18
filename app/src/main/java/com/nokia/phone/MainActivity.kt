@@ -418,6 +418,8 @@ fun Phone() {
     var power by remember { mutableStateOf(PowerStore.load(ctx)) }
     var pEdit by remember { mutableIntStateOf(0) }          // 0 = giờ tắt, 1 = giờ bật
     var settingsSel by remember { mutableIntStateOf(0) }    // nhớ mục đang chọn khi quay lại Cài đặt
+    var appMenuOn by remember { mutableStateOf(ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).getBoolean("app_menu", false)) }   // công tắc "Menu ứng dụng (trên máy)", mặc định TẮT
+    val menuItems = if (appMenuOn) MENU + ("Menu ứng dụng" to "apps") else MENU
     var volTick by remember { mutableIntStateOf(0) }
     var ringName by remember { mutableStateOf("") }
     var alarmName by remember { mutableStateOf("") }
@@ -1648,7 +1650,7 @@ fun Phone() {
             return
         }
         if (screen == "ai") { aiPress(k); return }
-        val size = when (screen) { "menu" -> MENU.size; "apps" -> maxOf(apps.size, 1); "settings" -> SETTINGS.size; "sound", "volume" -> 3; "clock" -> alarms.size + 1
+        val size = when (screen) { "menu" -> menuItems.size; "apps" -> maxOf(apps.size, 1); "settings" -> SETTINGS.size; "sound", "volume" -> 3; "clock" -> alarms.size + 1
             "wifi" -> wifiNets.size + 1; "sim" -> simRows(ctx).size; "brightness" -> 1; "battery" -> 3; "storage" -> 3
             "accounts" -> maxOf(Accts.google(ctx).size, 1); "power" -> 2
             "contacts" -> maxOf(cShown.size, 1); "messages" -> threads.size + 1
@@ -1694,7 +1696,7 @@ fun Phone() {
             }
             "OK", "SOFTL" -> when (screen) {
                 "home" -> open("menu")
-                "menu" -> when (val id = MENU[sel].second) {
+                "menu" -> when (val id = menuItems.getOrElse(sel) { MENU.last() }.second) {
                     else -> open(id)
                 }
                 "apps" -> apps.getOrNull(sel)?.let { a ->
@@ -1718,6 +1720,7 @@ fun Phone() {
                         "accounts" -> open("accounts")
                         "power" -> open("power")
                         "bt" -> toggleBt()
+                        "appmenu" -> { appMenuOn = !appMenuOn; ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("app_menu", appMenuOn).apply() }
                         "dialer" -> requestDialer()
                         "smsapp" -> requestSmsApp()
                         else -> open("reset")
@@ -1904,9 +1907,9 @@ fun Phone() {
                                 Text(dial.takeLast(12), color = homeInk, style = homeSh, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO, maxLines = 1, overflow = TextOverflow.Clip)
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
-                            "menu" -> if (homePhoto) Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true,
+                            "menu" -> if (homePhoto) Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true,
                                 ink = homeInk, inkOn = if (homeInk == Color.White) LCD else Color.White, rowBg = Color.Transparent, style = homeSh)
-                                else Lines(MENU.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true)   // tên mục menu to hơn 5%
+                                else Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
                                 if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
@@ -1945,7 +1948,7 @@ fun Phone() {
                             }
                             "calendar" -> MonthCalendar(monthOffset) { d -> monthOffset += d }
                             "settings" -> { val t = infoTick
-                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null) }, sel, tapItem, scroll, caps = true) }
+                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null, appMenuOn) }, sel, tapItem, scroll, caps = true) }
                             "wifi" -> { val t = infoTick
                                 if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) Msg("Cần quyền Vị trí để quét wifi\n(bấm OK để cấp)")
                                 else Lines(wifiLines(ctx, wifiNets), sel, tapItem, scroll) }

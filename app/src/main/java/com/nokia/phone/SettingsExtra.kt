@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
 /** Các mục trong Menu > Cài đặt (thứ tự hiển thị). */
 val SETTINGS = listOf(
     "wallpaper", "homewall", "sound", "wifi", "sim", "airplane", "hotspot", "brightness",
-    "battery", "storage", "accounts", "power", "bt", "reset", "launcher"
+    "battery", "storage", "accounts", "power", "bt", "reset", "launcher", "appmenu"
 )
 
 /** Các màn hình có số liệu thay đổi theo thời gian -> làm tươi mỗi giây. */
@@ -67,10 +67,11 @@ fun fmtDur(ms: Long): String {
     return if (m >= 60) "%dg %02dp".format(m / 60, m % 60) else "${m}p"
 }
 
-fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false): String = when (id) {
+fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false, appMenuOn: Boolean = false): String = when (id) {
     "wallpaper" -> "Hình nền khóa: " + if (wallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "homewall" -> "Hình nền chính: " + if (homeWallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "launcher" -> "Chọn launcher"
+    "appmenu" -> "Menu ứng dụng (trên máy): " + if (appMenuOn) "BẬT" else "TẮT"
     "sound" -> "Cài đặt âm thanh"
     "wifi" -> "Wifi: " + (if (!Wifi.isOn(ctx)) "TẮT" else Wifi.currentSsid(ctx) ?: "BẬT")
     "sim" -> "SIM"
