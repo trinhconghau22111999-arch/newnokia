@@ -1897,7 +1897,7 @@ fun Phone() {
                                 Column(Modifier.fillMaxWidth().neonPanel(HUD_CYAN, 16.dp, HUD_PANEL.copy(alpha = 0.45f), 2.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                                     horizontalAlignment = Alignment.Start) {
                                     Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
-                                        Text("● PIN " + Batt.percent(ctx) + "%", Modifier.clickable { shortcut("battery") }.border(1.dp, HUD_PINK, ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                        Text("● PIN " + Batt.percent(ctx) + "%", Modifier.clickable { shortcut("battery") }.border(1.dp, HUD_AMBER.copy(alpha = 0.45f), ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
                                             color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     }
                                     Text(now.take(5), Modifier.clickable { shortcut("clock") }, color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
