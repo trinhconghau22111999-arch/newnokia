@@ -2174,7 +2174,7 @@ fun Phone() {
                             "messages" -> Column(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(1f)) {
                                     Lines(listOf("+ Soạn tin mới") + threads.map {
-                                        (if (it.last.sent) "→ " else "") + it.name + ": " + it.last.body.replace('\n', ' ')
+                                        it.name + ": " + it.last.body.replace('\n', ' ')
                                     }, sel, tapItem, scroll)
                                 }
                                 if (sel > 0) Hint("#: xóa hội thoại")
@@ -2183,7 +2183,7 @@ fun Phone() {
                                 Head(curName)
                                 Box(Modifier.weight(1f)) {
                                     Lines(listOf("+ Trả lời") + threadMsgs.map {
-                                        (if (it.sent) "→ " else "← ") + it.body.replace('\n', ' ')
+                                        it.body.replace('\n', ' ')
                                     }, sel, tapItem, scroll)
                                 }
                                 if (sel > 0) Hint("#: xóa tin")
