@@ -194,7 +194,7 @@ class MainActivity : ComponentActivity() {
         val u = i?.data ?: return
         if (u.scheme == "tel" && (i.action == Intent.ACTION_DIAL || i.action == Intent.ACTION_VIEW))
             NokiaState.pendingDial = dialable(Uri.decode(u.schemeSpecificPart))
-        // SENDTO sms:/smsto:... từ app khác -> mở màn hình soẩn tin tới số đó
+        // SENDTO sms:/smsto:... từ app khác -> mở màn hình soạn tin tới số đó
         if (i.action == Intent.ACTION_SENDTO && (u.scheme == "sms" || u.scheme == "smsto" || u.scheme == "mms" || u.scheme == "mmsto"))
             NokiaState.pendingSms = dialable(Uri.decode(u.schemeSpecificPart.substringBefore('?')))
     }
@@ -556,7 +556,7 @@ fun Phone() {
     var topupBusy by remember { mutableStateOf(false) }        // đang chụp / đọc mã
     var aiMsg by remember { mutableStateOf("") }
     var aiLevel by remember { mutableFloatStateOf(0f) }
-    var aiKind by remember { mutableIntStateOf(1) }                    // 1 gọi, 2 gửi tin, 3 soẩn tin
+    var aiKind by remember { mutableIntStateOf(1) }                    // 1 gọi, 2 gửi tin, 3 soạn tin
     var aiBody by remember { mutableStateOf("") }
     var aiCands by remember { mutableStateOf(listOf<Contact>()) }      // người khớp tên (hoặc số đọc ra)
     var aiPick by remember { mutableIntStateOf(0) }
@@ -568,7 +568,7 @@ fun Phone() {
     var ytHeard by remember { mutableStateOf("") }
     var permThen by remember { mutableStateOf<(() -> Unit)?>(null) }
     var permMust by remember { mutableStateOf(listOf<String>()) }
-    // Ô tìm kiếm của Danh bạ (dùng chung bộ gõ multi-tap với soẩn tin; chỉ tính khi đang ở màn hình Danh bạ)
+    // Ô tìm kiếm của Danh bạ (dùng chung bộ gõ multi-tap với soạn tin; chỉ tính khi đang ở màn hình Danh bạ)
     val cQuery = if (screen == "contacts") entry.text else ""
     val cShown = remember(contacts, cQuery) { filterContacts(contacts, cQuery) }
     val cLines = remember(contacts, cShown) {
@@ -1402,7 +1402,7 @@ fun Phone() {
             else -> open(id)
         }
     }
-    /** Tìm người (hoặc dùng luôn số đọc ra) rồi sang bước xác nhận. kind: 1 gọi, 2 gửi tin, 3 soẩn tin. */
+    /** Tìm người (hoặc dùng luôn số đọc ra) rồi sang bước xác nhận. kind: 1 gọi, 2 gửi tin, 3 soạn tin. */
     fun aiPrepare(target: String, number: String, kind: Int, body: String) {
         aiKind = kind; aiBody = body
         if (number.isNotEmpty()) {
@@ -1968,7 +1968,7 @@ fun Phone() {
         "calllog" -> "Gọi"; "topup" -> "Chụp"
         "youtube", "tv" -> if (ytVoice == 1) "Xong" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
         "remote" -> if (ytVoice == 1) "Xong" else ""   // ẩn nút AI: đã có nút GIỌNG NÓI trong màn hình; khi đang nghe vẫn hiện "Xong"
-        "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soẩn"); else -> "Nói" }
+        "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
         else -> ""
     }
@@ -2156,7 +2156,7 @@ fun Phone() {
                                 if (contacts.isEmpty()) Box(Modifier.weight(1f)) {
                                     Msg(if (!granted(Manifest.permission.READ_CONTACTS)) "Cần quyền Danh bạ" else if (!ctLoaded) "Đang truy xuất danh bạ..." else "Danh bạ trống")
                                 } else {
-                                    // Một ô tìm duy nhất: gõ chữ cái đầu hoặc tên / số bất kỳ (bấm lặp phím số như soẩn tin, # đổi chữ <-> số)
+                                    // Một ô tìm duy nhất: gõ chữ cái đầu hoặc tên / số bất kỳ (bấm lặp phím số như soạn tin, # đổi chữ <-> số)
                                     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
                                         .border(2.dp, INK).padding(horizontal = 6.dp, vertical = 3.dp),
                                         verticalAlignment = Alignment.CenterVertically) {
@@ -2173,7 +2173,7 @@ fun Phone() {
                             }
                             "messages" -> Column(Modifier.fillMaxSize()) {
                                 Box(Modifier.weight(1f)) {
-                                    Lines(listOf("+ Soẩn tin mới") + threads.map {
+                                    Lines(listOf("+ Soạn tin mới") + threads.map {
                                         (if (it.last.sent) "→ " else "") + it.name + ": " + it.last.body.replace('\n', ' ')
                                     }, sel, tapItem, scroll)
                                 }
