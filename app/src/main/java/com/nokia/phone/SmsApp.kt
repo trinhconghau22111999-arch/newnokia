@@ -13,6 +13,9 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Telephony
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** phonecuibap có đang là ứng dụng nhắn tin (SMS) mặc định không. */
 fun isDefaultSms(ctx: Context): Boolean = try {
@@ -33,7 +36,7 @@ class SmsDeliverReceiver : BroadcastReceiver() {
         val sentAt = msgs[0].timestampMillis
         val sub = intent.getIntExtra("subscription", -1)
         val pending = goAsync()
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 val v = ContentValues().apply {
                     put("address", addr); put("body", body)
@@ -44,7 +47,7 @@ class SmsDeliverReceiver : BroadcastReceiver() {
                 try { ctx.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, v) } catch (_: Exception) {}
                 notifyNew(ctx, addr, body)
             } finally { pending.finish() }
-        }.start()
+        }
     }
 
     private fun notifyNew(ctx: Context, addr: String, body: String) {

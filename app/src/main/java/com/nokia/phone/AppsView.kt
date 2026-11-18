@@ -69,6 +69,23 @@ object AppIcons {
     fun clear() = cache.evictAll()
 }
 
+/** Icon của các app đã ghim ở màn hình chờ: giữ riêng (tối đa MAX_PINS), KHÔNG bị xóa khi rời màn hình Ứng dụng. */
+object PinIcons {
+    private val map = HashMap<String, ImageBitmap>()
+
+    fun get(pkg: String): ImageBitmap? = synchronized(map) { map[pkg] }
+
+    fun load(ctx: Context, pkg: String): ImageBitmap? {
+        get(pkg)?.let { return it }
+        val bmp = AppIcons.get(pkg) ?: AppIcons.load(ctx, pkg) ?: return null
+        synchronized(map) { map[pkg] = bmp }
+        return bmp
+    }
+
+    /** Bỏ icon của app không còn được ghim. */
+    fun retain(pkgs: List<String>) = synchronized(map) { map.keys.retainAll(pkgs.toSet()) }
+}
+
 /** Màn hình Ứng dụng: hai thẻ ở trên "Chữ" (danh sách tên) và "Icon" (bảng icon vuông, nhiều icon một hàng). */
 @Composable
 fun AppsScreen(
@@ -171,8 +188,8 @@ fun PinnedIcons(pkgs: List<String>, onOpen: (String) -> Unit) {
         pkgs.take(MAX_PINS).chunked(APP_COLS).forEach { row ->
             Row(Modifier.fillMaxWidth()) {
                 row.forEach { pkg ->
-                    val icon by produceState<ImageBitmap?>(AppIcons.get(pkg), pkg) {
-                        if (value == null) value = withContext(Dispatchers.IO) { AppIcons.load(ctx, pkg) }
+                    val icon by produceState<ImageBitmap?>(PinIcons.get(pkg), pkg) {
+                        if (value == null) value = withContext(Dispatchers.IO) { PinIcons.load(ctx, pkg) }
                     }
                     Box(Modifier.weight(1f).aspectRatio(1f).padding(4.dp).clickable { onOpen(pkg) }, contentAlignment = Alignment.Center) {
                         icon?.let { Image(it, null, Modifier.fillMaxSize()) }

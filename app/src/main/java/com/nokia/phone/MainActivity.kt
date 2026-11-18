@@ -259,9 +259,25 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-fun dateNow(): String = SimpleDateFormat("EEEE, dd/MM/yyyy", Locale.getDefault()).format(Date())
+// Giữ sẵn bộ định dạng, chỉ tạo lại khi đổi ngôn ngữ máy (trước đây mỗi lần gọi lại tạo SimpleDateFormat mới)
+private var dateFmt: SimpleDateFormat? = null
+private var dateLoc: Locale? = null
+private var timeFmt: SimpleDateFormat? = null
+private var timeLoc: Locale? = null
 
-fun timeNow(): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+@Synchronized
+fun dateNow(): String {
+    val l = Locale.getDefault()
+    if (dateFmt == null || dateLoc != l) { dateFmt = SimpleDateFormat("EEEE, dd/MM/yyyy", l); dateLoc = l }
+    return dateFmt!!.format(Date())
+}
+
+@Synchronized
+fun timeNow(): String {
+    val l = Locale.getDefault()
+    if (timeFmt == null || timeLoc != l) { timeFmt = SimpleDateFormat("HH:mm:ss", l); timeLoc = l }
+    return timeFmt!!.format(Date())
+}
 
 /** Lịch tháng (tuần bắt đầu từ thứ 2), mỗi ô có ngày dương và ngày âm bên dưới. offset = số tháng lệch so với tháng hiện tại. */
 @Composable
@@ -420,7 +436,7 @@ fun Phone() {
     var settingsSel by remember { mutableIntStateOf(0) }    // nhớ mục đang chọn khi quay lại Cài đặt
     val uiPrefs = ctx.getSharedPreferences("ui", Context.MODE_PRIVATE)
     var chargeInfo by remember { mutableStateOf(Batt.power(ctx)) }   // (chữ, chi tiết) công suất sạc; null = không cắm sạc
-    LaunchedEffect(screen) { if (screen == "home") while (true) { chargeInfo = Batt.power(ctx); kotlinx.coroutines.delay(2000) } }   // chỉ đo khi đang ở màn hình chờ
+    var battPct by remember { mutableStateOf(Batt.percent(ctx)) }   // % pin ở ô PIN: cập nhật theo sự kiện, không đọc lại mỗi lần vẽ
     var pins by remember { mutableStateOf(uiPrefs.getString("pins", "")!!.split("|").filter { it.isNotEmpty() }) }   // icon ghim ở màn hình chờ (tối đa MAX_PINS)
     var pinApp by remember { mutableStateOf<AppInfo?>(null) }                                                         // app đang hỏi ghim/bỏ ghim
     fun togglePin(a: AppInfo) {
@@ -614,6 +630,23 @@ fun Phone() {
     // Tiết kiệm pin: chỉ màn hình Đồng hồ hiện giây nên mới cập nhật mỗi giây; các màn khác (màn chính, khóa...) chỉ cập nhật đúng lúc đổi phút
     // (trước đây cả giao diện, kể cả ảnh nền, bị vẽ lại mỗi giây). Tắt màn hình / ra khỏi app thì dừng hẳn.
     val clockSeconds = screen == "clock"
+    // % pin + công suất sạc: nghe sự kiện pin đổi (chỉ khi app đang hiện); đo lại công suất mỗi 2 giây NHƯNG chỉ khi đang cắm sạc,
+    // đang ở màn hình chờ và màn hình đang bật (uiResumed) -> tắt màn hình hoặc rút sạc là vòng lặp dừng hẳn.
+    DisposableEffect(uiResumed) {
+        if (!uiResumed) return@DisposableEffect onDispose {}
+        battPct = Batt.percent(ctx); chargeInfo = Batt.power(ctx)
+        val r = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) { battPct = Batt.percent(c); chargeInfo = Batt.power(c) }
+        }
+        try { ctx.registerReceiver(r, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) } catch (_: Exception) {}
+        onDispose { try { ctx.unregisterReceiver(r) } catch (_: Exception) {} }
+    }
+    LaunchedEffect(screen, uiResumed, chargeInfo != null) {
+        if (screen == "home" && uiResumed && chargeInfo != null) while (true) { delay(2000); chargeInfo = Batt.power(ctx) }
+    }
+    // icon ghim còn cài trên máy (kiểm tra một lần khi ghim/bỏ ghim hoặc khi app hiện lại, không kiểm tra mỗi lần vẽ)
+    val shownPins = remember(pins, uiResumed) { pins.filter { ctx.packageManager.getLaunchIntentForPackage(it) != null } }
+    LaunchedEffect(pins) { PinIcons.retain(pins) }
     LaunchedEffect(uiResumed, clockSeconds) {
         if (!uiResumed) return@LaunchedEffect
         while (true) {
@@ -666,7 +699,15 @@ fun Phone() {
     }
     LaunchedEffect(screen, uiResumed) { if (screen == "snake" && uiResumed) while (true) { delay(snake.stepMs()); snake.step() } }   // tắt màn hình là game dừng
     LaunchedEffect(lockAt) { if (lockAt != 0L) { delay(4000); lockAt = 0L } }
-    LaunchedEffect(screen, uiResumed) { if (screen == "settings" && uiResumed) while (true) { btOn = isBtOn(ctx); dialerOn = isDefaultDialer(ctx); smsOn = isDefaultSms(ctx); delay(600) } }
+    // Cài đặt: không hỏi liên tục nữa. Đọc một lần khi vào / khi app hiện lại (quay về từ hộp thoại chọn app mặc định),
+    // riêng Bluetooth thì nghe sự kiện bật/tắt của hệ thống.
+    DisposableEffect(screen, uiResumed) {
+        if (screen != "settings" || !uiResumed) return@DisposableEffect onDispose {}
+        btOn = isBtOn(ctx); dialerOn = isDefaultDialer(ctx); smsOn = isDefaultSms(ctx)
+        val r = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { btOn = isBtOn(c) } }
+        try { ctx.registerReceiver(r, IntentFilter(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED)) } catch (_: Exception) {}
+        onDispose { try { ctx.unregisterReceiver(r) } catch (_: Exception) {} }
+    }
     LaunchedEffect(screen, uiResumed) { if (screen in INFO_SCREENS && uiResumed) while (true) { infoTick++; delay(1000) } }
     LaunchedEffect(gIdx, gIds, screen) {
         if (screen == "gallery" && gIds.isNotEmpty()) {
@@ -1918,14 +1959,14 @@ fun Phone() {
                                                 color = HUD_CYAN, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                             Spacer(Modifier.width(8.dp))
                                         }
-                                        Text("● PIN " + Batt.percent(ctx) + "%", Modifier.clickable { shortcut("battery") }.border(1.dp, HUD_AMBER.copy(alpha = 0.45f), ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                                        Text("● PIN " + battPct + "%", Modifier.clickable { shortcut("battery") }.border(1.dp, HUD_AMBER.copy(alpha = 0.45f), ChamferShape(5.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
                                             color = HUD_AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     }
                                     Text(now.take(5), Modifier.clickable { shortcut("clock") }, color = if (homePhoto) homeInk else Color.White, style = homeSh, fontSize = 70.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     Text(dateNow().uppercase(), Modifier.clickable { shortcut("calendar") }, color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
                                 }
-                                    PinnedIcons(pins.filter { ctx.packageManager.getLaunchIntentForPackage(it) != null }) { pkg ->
+                                    PinnedIcons(shownPins) { pkg ->
                                         val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
                                         launchPkg(pkg, lb)
                                     }
