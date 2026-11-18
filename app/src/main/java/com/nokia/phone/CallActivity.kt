@@ -13,7 +13,7 @@ import android.telecom.TelecomManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.clipToBounds
 import androidx.activity.result.contract.ActivityResultContracts
@@ -214,7 +214,7 @@ class CallActivity : LcdActivity() {
     // ------------------------------------------------------------ giao diện LCD
 
     /**
-     * Chỉ phần LCD phía trên trượt vào từ bên phải khi bắt đầu gọi; bàn phím bên dưới đứng yên.
+     * Chỉ phần LCD phía trên trượt xuống từ mép trên khi bắt đầu gọi; bàn phím bên dưới đứng yên.
      * Nội dung được cắt trong khung LCD nên không tràn xuống phím.
      */
     @Composable
@@ -224,7 +224,7 @@ class CallActivity : LcdActivity() {
         Box(Modifier.matchParentSize().clipToBounds()) {
             AnimatedVisibility(
                 visible = shown,
-                enter = slideInHorizontally(animationSpec = tween(220), initialOffsetX = { it }) + fadeIn(tween(220))
+                enter = slideInVertically(animationSpec = tween(220), initialOffsetY = { -it }) + fadeIn(tween(220))
             ) {
                 Box(Modifier.fillMaxSize(), content = content)
             }
