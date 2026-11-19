@@ -195,16 +195,31 @@ fun GridToggleButton(onClick: () -> Unit) {
     }
 }
 
+/** Nút 3x3 chấm ở màn hình chờ: bấm vào mở thẳng bảng Icon tất cả ứng dụng. */
+@Composable
+fun AppsButton(onClick: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(10.dp).clickable { onClick() }, contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxSize(0.6f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(3) {
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    repeat(3) { Box(Modifier.weight(1f).fillMaxHeight().background(HUD_CYAN, androidx.compose.foundation.shape.RoundedCornerShape(3.dp))) }
+                }
+            }
+        }
+    }
+}
+
 /** App đã ghim ở màn hình chờ (dưới khung ngày giờ): tối đa 8 icon, 4 icon một hàng.
  *  Mặc định chỉ hiện nút 4 ô vuông ở góc phải hàng đầu; bấm vào mới hiện đủ icon (expanded). */
 @Composable
-fun PinnedIcons(pkgs: List<String>, expanded: Boolean, onToggle: () -> Unit, onOpen: (String) -> Unit) {
+fun PinnedIcons(pkgs: List<String>, visible: Boolean, expanded: Boolean, onToggle: () -> Unit, onApps: () -> Unit, onOpen: (String) -> Unit) {
     val ctx = LocalContext.current
-    if (pkgs.isEmpty()) return
-    if (!expanded) {
+    if (!visible) return
+    if (!expanded || pkgs.isEmpty()) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            repeat(APP_COLS - 1) { Spacer(Modifier.weight(1f)) }
-            Box(Modifier.weight(1f).aspectRatio(1f)) { GridToggleButton(onToggle) }
+            repeat(APP_COLS - 2) { Spacer(Modifier.weight(1f)) }
+            Box(Modifier.weight(1f).aspectRatio(1f)) { AppsButton(onApps) }
+            if (pkgs.isNotEmpty()) Box(Modifier.weight(1f).aspectRatio(1f)) { GridToggleButton(onToggle) } else Spacer(Modifier.weight(1f))
         }
         return
     }

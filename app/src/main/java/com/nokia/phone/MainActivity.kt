@@ -2062,7 +2062,7 @@ fun Phone() {
                                     Text(dateNow().uppercase(), Modifier.clickable { shortcut("calendar") }, color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
                                 }
-                                    PinnedIcons(if (dial.isEmpty()) shownPins else emptyList(), showPins, { showPins = !showPins }) { pkg ->
+                                    PinnedIcons(shownPins, dial.isEmpty(), showPins, { showPins = !showPins }, { appsMode = 1; shortcut("apps") }) { pkg ->
                                         showPins = false   // đang bấm số thì ẩn icon cho dễ nhìn số
                                         val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
                                         launchPkg(pkg, lb)
