@@ -456,6 +456,7 @@ fun Phone() {
     var chargeInfo by remember { mutableStateOf(Batt.power(ctx)) }   // (chữ, chi tiết) công suất sạc; null = không cắm sạc
     var battPct by remember { mutableStateOf(Batt.percent(ctx)) }   // % pin ở ô PIN: cập nhật theo sự kiện, không đọc lại mỗi lần vẽ
     var pins by remember { mutableStateOf(uiPrefs.getString("pins", "")!!.split("|").filter { it.isNotEmpty() }) }   // icon ghim ở màn hình chờ (tối đa MAX_PINS)
+    var showPins by remember { mutableStateOf(false) }                                                                // false: chỉ hiện nút 4 ô vuông; true: bung icon ghim ra
     var pinApp by remember { mutableStateOf<AppInfo?>(null) }                                                         // app đang hỏi ghim/bỏ ghim
     fun togglePin(a: AppInfo) {
         val cur = pins
@@ -672,6 +673,7 @@ fun Phone() {
     // icon ghim còn cài trên máy (kiểm tra một lần khi ghim/bỏ ghim hoặc khi app hiện lại, không kiểm tra mỗi lần vẽ)
     val shownPins = remember(pins, uiResumed) { pins.filter { ctx.packageManager.getLaunchIntentForPackage(it) != null } }
     LaunchedEffect(pins) { PinIcons.retain(pins) }
+    LaunchedEffect(screen) { if (screen != "home") showPins = false }
     LaunchedEffect(uiResumed, clockSeconds) {
         if (!uiResumed) return@LaunchedEffect
         while (true) {
@@ -1927,7 +1929,7 @@ fun Phone() {
                 else if (screen == "compose" && cStage == 1 && entry.text.isNotEmpty()) entry.backspace()
                 else if (screen == "contacts" && entry.text.isNotEmpty()) { entry.backspace(); sel = 0 }
                 else back()
-            "END" -> if (screen == "home") { dial = ""; dialPos = 0 } else open("home")
+            "END" -> if (screen == "home") { if (showPins) showPins = false else { dial = ""; dialPos = 0 } } else open("home")
             "CALL" -> when (screen) {
                 "home" -> if (dial.isNotEmpty()) { callNow(dial); dial = ""; dialPos = 0 } else shortcut("calllog")   // gọi xong, về màn chờ số đã xóa hết   // chưa gõ số: phím gọi xanh mở Nhật ký
                 "contacts" -> cShown.getOrNull(sel)?.let { callNow(it.number) }
@@ -2060,7 +2062,8 @@ fun Phone() {
                                     Text(dateNow().uppercase(), Modifier.clickable { shortcut("calendar") }, color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
                                 }
-                                    PinnedIcons(if (dial.isEmpty()) shownPins else emptyList()) { pkg ->   // đang bấm số thì ẩn icon cho dễ nhìn số
+                                    PinnedIcons(if (dial.isEmpty()) shownPins else emptyList(), showPins, { showPins = !showPins }) { pkg ->
+                                        showPins = false   // đang bấm số thì ẩn icon cho dễ nhìn số
                                         val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
                                         launchPkg(pkg, lb)
                                     }

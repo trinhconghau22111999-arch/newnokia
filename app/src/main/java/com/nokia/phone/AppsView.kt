@@ -13,12 +13,14 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -179,11 +181,33 @@ private fun ColumnScope.IconGrid(apps: List<AppInfo>, sel: Int, onTap: (Int) -> 
         maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
 }
 
-/** Icon app đã ghim ở màn hình chờ (dưới khung ngày giờ): tối đa 8 icon, 4 icon một hàng, chạm để mở. */
+/** Nút 4 ô vuông (2x2) ở màn hình chờ: bấm vào mới bung các app đã ghim ra. */
 @Composable
-fun PinnedIcons(pkgs: List<String>, onOpen: (String) -> Unit) {
+fun GridToggleButton(onClick: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(10.dp).clickable { onClick() }, contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxSize(0.6f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(2) {
+                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    repeat(2) { Box(Modifier.weight(1f).fillMaxHeight().background(HUD_CYAN, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))) }
+                }
+            }
+        }
+    }
+}
+
+/** App đã ghim ở màn hình chờ (dưới khung ngày giờ): tối đa 8 icon, 4 icon một hàng.
+ *  Mặc định chỉ hiện nút 4 ô vuông ở góc phải hàng đầu; bấm vào mới hiện đủ icon (expanded). */
+@Composable
+fun PinnedIcons(pkgs: List<String>, expanded: Boolean, onToggle: () -> Unit, onOpen: (String) -> Unit) {
     val ctx = LocalContext.current
     if (pkgs.isEmpty()) return
+    if (!expanded) {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            repeat(APP_COLS - 1) { Spacer(Modifier.weight(1f)) }
+            Box(Modifier.weight(1f).aspectRatio(1f)) { GridToggleButton(onToggle) }
+        }
+        return
+    }
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         pkgs.take(MAX_PINS).chunked(APP_COLS).forEach { row ->
             Row(Modifier.fillMaxWidth()) {
