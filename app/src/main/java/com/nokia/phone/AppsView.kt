@@ -217,9 +217,14 @@ fun PinnedIcons(pkgs: List<String>, visible: Boolean, expanded: Boolean, onToggl
     if (!visible) return
     if (!expanded || pkgs.isEmpty()) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            repeat(APP_COLS - 2) { Spacer(Modifier.weight(1f)) }
-            Box(Modifier.weight(1f).aspectRatio(1f)) { AppsButton(onApps) }
-            if (pkgs.isNotEmpty()) Box(Modifier.weight(1f).aspectRatio(1f)) { GridToggleButton(onToggle) } else Spacer(Modifier.weight(1f))
+            if (pkgs.isNotEmpty()) {   // có app ghim: nút 3x3 ở ô 3, nút 4 ô ở ô 4
+                repeat(APP_COLS - 2) { Spacer(Modifier.weight(1f)) }
+                Box(Modifier.weight(1f).aspectRatio(1f)) { AppsButton(onApps) }
+                Box(Modifier.weight(1f).aspectRatio(1f)) { GridToggleButton(onToggle) }
+            } else {   // không có app ghim: chỉ còn nút 3x3, nằm ở ô 4 (góc phải)
+                repeat(APP_COLS - 1) { Spacer(Modifier.weight(1f)) }
+                Box(Modifier.weight(1f).aspectRatio(1f)) { AppsButton(onApps) }
+            }
         }
         return
     }
