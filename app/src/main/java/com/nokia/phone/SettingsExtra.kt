@@ -67,7 +67,7 @@ fun fmtDur(ms: Long): String {
     return if (m >= 60) "%dg %02dp".format(m / 60, m % 60) else "${m}p"
 }
 
-fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false, appMenuOn: Boolean = false, iconRowOn: Boolean = true): String = when (id) {
+fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false, appMenuOn: Boolean = false): String = when (id) {
     "wallpaper" -> "Đổi hình khoá"
     "homewall" -> "Đổi hình nền"
     "launcher" -> "Chọn launcher"
@@ -85,7 +85,6 @@ fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, sms
     "power" -> "Lịch bật tắt nguồn"
     "bt" -> "Bluetooth: " + if (btOn) "BẬT" else "TẮT"
     "dialer" -> "Ứng dụng gọi: " + if (dialerOn) "Nokia" else "khác (chọn)"
-    "iconrow" -> "Dòng ứng dụng icon: " + if (iconRowOn) "BẬT" else "TẮT"
     "smsapp" -> "Ứng dụng nhắn tin: " + if (smsOn) "Nokia" else "khác (chọn)"
     else -> "Khôi phục cài đặt gốc"
 }
