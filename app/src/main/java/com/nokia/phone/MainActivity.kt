@@ -962,15 +962,18 @@ fun Phone() {
     fun doReset() {
         alarms = emptyList()
         AlarmStore.schedule(ctx, emptyList())
-        val ok = try {
-            (ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).clearApplicationUserData()
-        } catch (_: Exception) { false }
-        if (!ok) {
-            ctx.getSharedPreferences("alarms", Context.MODE_PRIVATE).edit().clear().apply()
-            ctx.getSharedPreferences("sound", Context.MODE_PRIVATE).edit().clear().apply()
-            ctx.getSharedPreferences("sms_sent", Context.MODE_PRIVATE).edit().clear().apply()
-            locked = true; lockAt = 0L; screen = "home"; sel = 0; dial = ""; dialPos = 0
-        }
+        // Chỉ xóa DỮ LIỆU của app, KHÔNG dùng clearApplicationUserData(): hệ thống sẽ thu hồi mọi quyền
+        // đã cấp (camera, danh bạ, tin nhắn, vị trí...) và phải xin lại. Quyền hệ thống (app gọi/nhắn mặc định,
+        // trợ năng, ghi đè cài đặt...) cũng được giữ nguyên vì không nằm trong dữ liệu app.
+        try {
+            listOf("alarms", "power", "sim", "sms_hidden", "sms_sent", "sound", "ui", "usage").forEach {
+                ctx.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit()
+            }
+            ctx.filesDir.listFiles()?.forEach { it.deleteRecursively() }   // ảnh nền, ghi âm...
+            ctx.cacheDir.listFiles()?.forEach { it.deleteRecursively() }
+        } catch (_: Exception) {}
+        // Dựng lại màn hình từ dữ liệu đã xóa (trạng thái trong bộ nhớ cũng về mặc định)
+        (ctx as? android.app.Activity)?.recreate()
     }
 
     val notifPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
