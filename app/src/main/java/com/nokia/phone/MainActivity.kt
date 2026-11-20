@@ -362,8 +362,6 @@ fun FieldBox(text: String, selected: Boolean, size: Int, onClick: () -> Unit) {
 }
 
 val VOL = listOf(
-    "Nhạc chuông" to AudioManager.STREAM_RING,
-    "Báo thức" to AudioManager.STREAM_ALARM,
     "Phương tiện" to AudioManager.STREAM_MUSIC
 )
 
@@ -1800,7 +1798,7 @@ fun Phone() {
             return
         }
         if (screen == "ai") { aiPress(k); return }
-        val size = when (screen) { "menu" -> menuItems.size; "apps" -> maxOf(apps.size, 1); "settings" -> SETTINGS.size; "sound", "volume" -> 3; "clock" -> alarms.size + 1
+        val size = when (screen) { "menu" -> menuItems.size; "apps" -> maxOf(apps.size, 1); "settings" -> SETTINGS.size; "sound" -> 3; "volume" -> VOL.size; "clock" -> alarms.size + 1
             "wifi" -> wifiNets.size + 1; "sim" -> simRows(ctx).size; "brightness" -> 1; "battery" -> 3; "storage" -> 3
             "accounts" -> maxOf(Accts.google(ctx).size, 1); "power" -> 2
             "contacts" -> maxOf(cShown.size, 1); "messages" -> threads.size + 1
