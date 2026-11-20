@@ -1894,7 +1894,7 @@ fun Phone() {
                 "accounts" -> if (!granted(Manifest.permission.GET_ACCOUNTS)) need(listOf(Manifest.permission.GET_ACCOUNTS)) { infoTick++ }
                     else openSettings(ctx, Settings.ACTION_SYNC_SETTINGS)
                 "power" -> startPowerEdit(sel)
-                "powerEdit" -> savePower()
+                "powerEdit" -> if (k == "OK") editMove("UP") else savePower()   // OK = đổi giá trị ô đang chọn; Lưu = lưu
                 "sound" -> when (sel) {
                     0 -> open("volume")
                     1 -> ringPick.launch(Sound.pickerIntent(ctx, RingtoneManager.TYPE_RINGTONE))
@@ -2166,7 +2166,7 @@ fun Phone() {
                                 FieldBox((if (pEdit == 0) "Tắt: " else "Bật: ") + if (eon) "BẬT" else "TẮT", editField == 2, 18) {
                                     if (editField == 2) editMove("UP") else editField = 2
                                 }
-                                Text("◀ ▶ chọn ô    ▲ ▼ đổi giá trị", color = INK, fontSize = 12.sp, fontFamily = MONO)
+                                Text("◀ ▶ chọn ô    OK đổi giá trị", color = INK, fontSize = 12.sp, fontFamily = MONO)
                             }
                             "sound" -> Lines(listOf("Âm lượng", "Nhạc chuông: $ringName", "Nhạc báo thức: $alarmName"), sel, tapItem, scroll)
                             "volume" -> Lines(VOL.map { (n, st) -> volTick.let { volLine(ctx, n, st) } }, sel, tapItem, scroll)
