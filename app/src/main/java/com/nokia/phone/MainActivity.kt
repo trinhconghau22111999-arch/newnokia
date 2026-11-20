@@ -1895,7 +1895,6 @@ fun Phone() {
                 "sim" -> simOk { need(Sims.perms(), listOf(Manifest.permission.READ_PHONE_STATE)) { infoTick++ } }
                 "brightness" -> adjustBright(1, true)
                 "accounts" -> if (!granted(Manifest.permission.GET_ACCOUNTS)) need(listOf(Manifest.permission.GET_ACCOUNTS)) { infoTick++ }
-                    else openSettings(ctx, Settings.ACTION_SYNC_SETTINGS)
                 "power" -> startPowerEdit(sel)
                 "powerEdit" -> if (k == "OK") editMove("UP") else savePower()   // OK = đổi giá trị ô đang chọn; Lưu = lưu
                 "sound" -> when (sel) {
@@ -1985,7 +1984,7 @@ fun Phone() {
 
     val left = when (screen) {
         "home" -> "Menu"; "menu", "apps" -> "Chọn"; "settings", "sound", "wifi", "sim", "power" -> "Chọn"; "reset" -> "Có"
-        "brightness" -> "Đổi"; "accounts" -> "Mở"; "powerEdit" -> "Lưu"
+        "brightness" -> "Đổi"; "accounts" -> if (permOk(ctx, Manifest.permission.GET_ACCOUNTS)) "" else "Cấp quyền"; "powerEdit" -> "Lưu"
         "snake" -> if (snake.dead) "Chơi lại" else ""
         "clock" -> "Sửa"; "calendar" -> "Hôm nay"
         "contacts" -> "Gọi"; "messages", "thread" -> "Chọn"; "msgview" -> "Trả lời"
