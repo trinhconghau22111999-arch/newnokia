@@ -2159,12 +2159,13 @@ fun Phone() {
                                 Text(if (pEdit == 0) "Giờ tắt màn hình" else "Giờ bật màn hình",
                                     color = INK, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    FieldBox("%02d".format(eh), editField == 0, 56) { if (editField == 0) editMove("UP") else editField = 0 }
-                                    Text(":", color = INK, fontSize = 56.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
-                                    FieldBox("%02d".format(em), editField == 1, 56) { if (editField == 1) editMove("UP") else editField = 1 }
-                                }
-                                FieldBox((if (pEdit == 0) "Tắt: " else "Bật: ") + if (eon) "BẬT" else "TẮT", editField == 2, 18) {
-                                    if (editField == 2) editMove("UP") else editField = 2
+                                    FieldBox("%02d".format(eh), editField == 0, 48) { if (editField == 0) editMove("UP") else editField = 0 }
+                                    Text(":", color = INK, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+                                    FieldBox("%02d".format(em), editField == 1, 48) { if (editField == 1) editMove("UP") else editField = 1 }
+                                    Spacer(Modifier.width(10.dp))
+                                    FieldBox((if (pEdit == 0) "Tắt: " else "Bật: ") + if (eon) "BẬT" else "TẮT", editField == 2, 16) {
+                                        if (editField == 2) editMove("UP") else editField = 2
+                                    }
                                 }
                                 Text("◀ ▶ chọn ô    OK đổi giá trị", color = INK, fontSize = 12.sp, fontFamily = MONO)
                             }
