@@ -59,6 +59,22 @@ const val VOICE_HOOK_JS = """
 """
 
 /** Nút "Mở ứng dụng" / "Open app" của YouTube được đổi thành nút "Đăng nhập" (mở trang đăng nhập Google); ẩn banner mời tải app. */
+/** Chỉ giữ video thuần túy trên YouTube: ẩn các dải video vuốt ngang, Shorts, danh sách phát, mix/radio, kênh. */
+const val HIDE_NON_VIDEO_JS = """
+(function(){
+  if (window.__hideNonVideo) return; window.__hideNonVideo = true;
+  var st = document.createElement('style');
+  st.textContent =
+    'ytm-horizontal-card-list-renderer,ytm-rich-shelf-renderer,ytm-reel-shelf-renderer,ytm-shelf-renderer,' +
+    'ytm-compact-radio-renderer,ytm-radio-renderer,' +
+    'ytm-compact-playlist-renderer,ytm-playlist-renderer,ytm-grid-playlist-renderer,' +
+    'ytm-compact-channel-renderer,ytm-channel-renderer,ytm-grid-channel-renderer,ytm-channel-list-renderer,' +
+    'ytm-reel-item-renderer,ytm-shorts-lockup-view-model,ytm-shorts-lockup-view-model-v2' +
+    '{display:none!important}';
+  (document.head || document.documentElement).appendChild(st);
+})();
+"""
+
 /** Ẩn toàn bộ thanh tiêu đề trên cùng của YouTube (logo, tìm kiếm, mic, đăng nhập...) và bỏ khoảng trống nó để lại. */
 const val HIDE_TOPBAR_JS = """
 (function(){
