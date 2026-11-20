@@ -424,7 +424,8 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         return true
     }
 
-    // ---- Lớp đếm ngược 3 2 1 che lúc kênh đang tải; đếm xong thì bỏ lớp, âm thanh không bị ảnh hưởng ----
+    // ---- Lớp đếm ngược 5 4 3 2 1 che lúc kênh đang tải; đếm xong thì bỏ lớp, âm thanh không bị ảnh hưởng ----
+    private val COVER_SECONDS = 5
     private var cover: TextView? = null
     private var coverTick: Runnable? = null
     private val coverHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -438,7 +439,7 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
             textSize = 96f
             typeface = Typeface.DEFAULT_BOLD
             isClickable = true      // chặn chạm xuyên xuống khi đang đếm
-            text = "3"
+            text = COVER_SECONDS.toString()
         }
         view.addView(t, FrameLayout.LayoutParams(-1, -1))
         cover = t
@@ -446,8 +447,8 @@ class TvPane(private val act: Activity, private val full: FullscreenHost) {
         lateinit var next: Runnable
         next = Runnable {
             step++
-            if (step < 3) {
-                t.text = (3 - step).toString()
+            if (step < COVER_SECONDS) {
+                t.text = (COVER_SECONDS - step).toString()
                 coverHandler.postDelayed(next, 1000)
             } else stopCover()
         }
