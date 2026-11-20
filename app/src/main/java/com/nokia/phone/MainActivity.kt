@@ -1804,7 +1804,7 @@ fun Phone() {
         }
         if (screen == "ai") { aiPress(k); return }
         val size = when (screen) { "menu" -> menuItems.size; "apps" -> maxOf(apps.size, 1); "settings" -> SETTINGS.size; "sound" -> 3; "volume" -> VOL.size; "clock" -> alarms.size + 1
-            "wifi" -> wifiNets.size + 1; "sim" -> simRows(ctx).size; "brightness" -> 1; "battery" -> 3; "storage" -> 3
+            "wifi" -> wifiNets.size + 1; "sim" -> simRows(ctx).size; "brightness" -> 1; "battery" -> 2; "storage" -> 3
             "accounts" -> maxOf(Accts.google(ctx).size, 1); "power" -> 2
             "contacts" -> maxOf(cShown.size, 1); "messages" -> threads.size + 1
             "thread" -> threadMsgs.size + 1; "msgview" -> maxOf(threadMsgs.size, 1); "recorder" -> recs.size + 1
@@ -1894,7 +1894,6 @@ fun Phone() {
                 }
                 "sim" -> simOk { need(Sims.perms(), listOf(Manifest.permission.READ_PHONE_STATE)) { infoTick++ } }
                 "brightness" -> adjustBright(1, true)
-                "battery" -> if (sel == 2) openSettings(ctx, Settings.ACTION_BATTERY_SAVER_SETTINGS)
                 "accounts" -> if (!granted(Manifest.permission.GET_ACCOUNTS)) need(listOf(Manifest.permission.GET_ACCOUNTS)) { infoTick++ }
                     else openSettings(ctx, Settings.ACTION_SYNC_SETTINGS)
                 "power" -> startPowerEdit(sel)
@@ -1986,7 +1985,7 @@ fun Phone() {
 
     val left = when (screen) {
         "home" -> "Menu"; "menu", "apps" -> "Chọn"; "settings", "sound", "wifi", "sim", "power" -> "Chọn"; "reset" -> "Có"
-        "brightness" -> "Đổi"; "battery", "accounts" -> "Mở"; "powerEdit" -> "Lưu"
+        "brightness" -> "Đổi"; "accounts" -> "Mở"; "powerEdit" -> "Lưu"
         "snake" -> if (snake.dead) "Chơi lại" else ""
         "clock" -> "Sửa"; "calendar" -> "Hôm nay"
         "contacts" -> "Gọi"; "messages", "thread" -> "Chọn"; "msgview" -> "Trả lời"
@@ -2139,8 +2138,7 @@ fun Phone() {
                                 Lines(listOf("Độ sáng " + Bright.bar(b) + " " + Bright.pct(b) + "%"), sel, tapItem, scroll) }
                             "battery" -> { val t = infoTick
                                 Lines(listOf("Pin: " + Batt.percent(ctx) + "%" + if (Batt.charging(ctx)) " (đang sạc)" else "",
-                                    "Dùng hôm nay: " + fmtDur(UsageTracker.todayMs(ctx)),
-                                    "Tiết kiệm pin: " + (if (Batt.saverOn(ctx)) "BẬT" else "TẮT") + " (mở)"), sel, tapItem, scroll) }
+                                    "Dùng hôm nay: " + fmtDur(UsageTracker.todayMs(ctx))), sel, tapItem, scroll) }
                             "storage" -> { val t = infoTick; val (total, free) = Store.info()
                                 Lines(listOf("Tổng: " + Store.gb(total), "Trống: " + Store.gb(free),
                                     "Đã dùng: " + Store.gb((total - free).coerceAtLeast(0L))), sel, tapItem, scroll) }
