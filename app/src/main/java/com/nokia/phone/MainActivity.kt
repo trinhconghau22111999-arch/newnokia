@@ -469,6 +469,7 @@ fun Phone() {
     LaunchedEffect(screen) { pinApp = null }
     var appMenuOn by remember { mutableStateOf(ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).getBoolean("app_menu", false)) }   // công tắc "Menu ứng dụng (trên máy)", mặc định TẮT
     val menuItems = if (appMenuOn) MENU + ("Menu ứng dụng" to "apps") else MENU
+    var iconRowOn by remember { mutableStateOf(ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).getBoolean("icon_row", true)) }   // dòng nút 3x3 / 2x2 + icon ghim ở màn hình chờ, mặc định BẬT
     var volTick by remember { mutableIntStateOf(0) }
     var ringName by remember { mutableStateOf("") }
     var alarmName by remember { mutableStateOf("") }
@@ -1874,6 +1875,7 @@ fun Phone() {
                         "bt" -> toggleBt()
                         "appmenu" -> { appMenuOn = !appMenuOn; ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("app_menu", appMenuOn).apply() }
                         "dialer" -> requestDialer()
+                        "iconrow" -> { iconRowOn = !iconRowOn; ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("icon_row", iconRowOn).apply() }
                         "smsapp" -> requestSmsApp()
                         else -> open("reset")
                     }
@@ -2062,7 +2064,7 @@ fun Phone() {
                                     Text(dateNow().uppercase(), Modifier.clickable { shortcut("calendar") }, color = homeInk, style = homeSh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO,
                                         maxLines = 2, letterSpacing = 1.sp)
                                 }
-                                    PinnedIcons(shownPins, dial.isEmpty(), showPins, { showPins = !showPins }, { appsMode = 1; shortcut("apps") }) { pkg ->
+                                    if (iconRowOn) PinnedIcons(shownPins, dial.isEmpty(), showPins, { showPins = !showPins }, { appsMode = 1; shortcut("apps") }) { pkg ->
                                         showPins = false   // đang bấm số thì ẩn icon cho dễ nhìn số
                                         val lb = try { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
                                         launchPkg(pkg, lb)
@@ -2124,7 +2126,7 @@ fun Phone() {
                             }
                             "calendar" -> MonthCalendar(monthOffset) { d -> monthOffset += d }
                             "settings" -> { val t = infoTick
-                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null, appMenuOn) }, sel, tapItem, scroll, caps = true) }
+                                Lines(SETTINGS.map { settingLabel(ctx, it, btOn, dialerOn, smsOn, wallBmp != null, homeBmp != null, appMenuOn, iconRowOn) }, sel, tapItem, scroll, caps = true) }
                             "wifi" -> { val t = infoTick
                                 if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) Msg("Cần quyền Vị trí để quét wifi\n(bấm OK để cấp)")
                                 else Lines(wifiLines(ctx, wifiNets), sel, tapItem, scroll) }

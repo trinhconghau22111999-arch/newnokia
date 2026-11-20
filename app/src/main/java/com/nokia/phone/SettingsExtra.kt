@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
 /** Các mục trong Menu > Cài đặt (thứ tự hiển thị). */
 val SETTINGS = listOf(
     "wallpaper", "homewall", "sound", "wifi", "sim", "airplane", "hotspot", "brightness",
-    "battery", "storage", "accounts", "power", "bt", "dialer", "reset", "launcher", "appmenu"
+    "battery", "storage", "accounts", "power", "bt", "dialer", "iconrow", "reset", "launcher", "appmenu"
 )
 
 /** Các màn hình có số liệu thay đổi theo thời gian -> làm tươi mỗi giây. */
@@ -67,7 +67,7 @@ fun fmtDur(ms: Long): String {
     return if (m >= 60) "%dg %02dp".format(m / 60, m % 60) else "${m}p"
 }
 
-fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false, appMenuOn: Boolean = false): String = when (id) {
+fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false, appMenuOn: Boolean = false, iconRowOn: Boolean = true): String = when (id) {
     "wallpaper" -> "Hình nền khóa: " + if (wallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "homewall" -> "Hình nền chính: " + if (homeWallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "launcher" -> "Chọn launcher"
@@ -84,6 +84,7 @@ fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, sms
     "power" -> "Lịch bật tắt nguồn"
     "bt" -> "Bluetooth: " + if (btOn) "BẬT" else "TẮT"
     "dialer" -> "Ứng dụng gọi: " + if (dialerOn) "Nokia" else "khác (chọn)"
+    "iconrow" -> "Dòng ứng dụng icon: " + if (iconRowOn) "BẬT" else "TẮT"
     "smsapp" -> "Ứng dụng nhắn tin: " + if (smsOn) "Nokia" else "khác (chọn)"
     else -> "Khôi phục cài đặt gốc"
 }
