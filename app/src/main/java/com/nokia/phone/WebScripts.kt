@@ -75,6 +75,40 @@ const val HIDE_NON_VIDEO_JS = """
 })();
 """
 
+/** Giữ biểu tượng YouTube ~2 giây -> mở trang cá nhân (tab Bạn: tài khoản, lịch sử, xem sau...). Chạm bình thường không đổi. */
+const val YT_LOGO_HOLD_JS = """
+(function(){
+  if (window.__ytLogoHold) return; window.__ytLogoHold = true;
+  var HOLD_MS = 2000;
+  var LOGO = 'a[href="/"],a[href="https://m.youtube.com/"],a[href="https://www.youtube.com/"],' +
+    'ytm-topbar-logo-renderer,ytm-home-logo,ytm-logo,ytd-topbar-logo-renderer,#logo,#logo-icon,' +
+    'img[alt="YouTube" i],svg[aria-label="YouTube" i],[aria-label="YouTube" i][role="img"]';
+  var timer = null, holding = false, sx = 0, sy = 0;
+  function cancel(){ if (timer) { clearTimeout(timer); timer = null; } holding = false; }
+  document.addEventListener('touchstart', function(e){
+    cancel();
+    var t = e.target;
+    if (!t || !t.closest || !t.closest(LOGO)) return;
+    var touch = e.touches && e.touches[0];
+    sx = touch ? touch.clientX : 0; sy = touch ? touch.clientY : 0;
+    holding = true;
+    timer = setTimeout(function(){
+      timer = null; holding = false;
+      window.location.href = location.origin + '/feed/you';
+    }, HOLD_MS);
+  }, {capture:true, passive:true});
+  document.addEventListener('touchmove', function(e){
+    if (!timer) return;
+    var touch = e.touches && e.touches[0];
+    if (!touch) return;
+    if (Math.abs(touch.clientX - sx) > 20 || Math.abs(touch.clientY - sy) > 20) cancel();
+  }, {capture:true, passive:true});
+  document.addEventListener('touchend', cancel, {capture:true, passive:true});
+  document.addEventListener('touchcancel', cancel, {capture:true, passive:true});
+  document.addEventListener('contextmenu', function(e){ if (holding) e.preventDefault(); }, true);
+})();
+"""
+
 /** Ẩn toàn bộ thanh tiêu đề trên cùng của YouTube (logo, tìm kiếm, mic, đăng nhập...) và bỏ khoảng trống nó để lại. */
 const val HIDE_TOPBAR_JS = """
 (function(){

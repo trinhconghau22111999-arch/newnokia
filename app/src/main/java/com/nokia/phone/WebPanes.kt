@@ -108,7 +108,7 @@ private fun configureWebView(act: Activity, web: WebView) {
     web.setBackgroundColor(Color.BLACK)
     try {
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))
-            WebViewCompat.addDocumentStartJavaScript(web, "window.__wbAdSkip=true;" + YT_ONLY_AD_JS + HIDE_OPEN_APP_JS + HIDE_TOPBAR_JS + HIDE_NON_VIDEO_JS,
+            WebViewCompat.addDocumentStartJavaScript(web, "window.__wbAdSkip=true;" + YT_ONLY_AD_JS + HIDE_OPEN_APP_JS + HIDE_TOPBAR_JS + HIDE_NON_VIDEO_JS + YT_LOGO_HOLD_JS,
                 setOf("https://*.youtube.com", "https://youtube.com"))
     } catch (e: Exception) { }
 }
@@ -201,6 +201,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript(HIDE_OPEN_APP_JS, null)
                     view?.evaluateJavascript(HIDE_TOPBAR_JS, null)
                     view?.evaluateJavascript(HIDE_NON_VIDEO_JS, null)
+                    view?.evaluateJavascript(YT_LOGO_HOLD_JS, null)
                     view?.evaluateJavascript(YT_NAV_JS, null)
                     view?.evaluateJavascript(YT_QUALITY_JS, null)
                     view?.evaluateJavascript(TOUCH_LOCK_JS, null)
