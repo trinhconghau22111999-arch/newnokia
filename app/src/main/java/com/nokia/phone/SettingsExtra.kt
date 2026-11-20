@@ -68,8 +68,8 @@ fun fmtDur(ms: Long): String {
 }
 
 fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, smsOn: Boolean = false, wallOn: Boolean = false, homeWallOn: Boolean = false, appMenuOn: Boolean = false, iconRowOn: Boolean = true): String = when (id) {
-    "wallpaper" -> "Hình nền khóa: " + if (wallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
-    "homewall" -> "Hình nền chính: " + if (homeWallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
+    "wallpaper" -> "Đổi hình khoá"
+    "homewall" -> "Đổi hình nền"
     "launcher" -> "Chọn launcher"
     "update" -> "Cập nhật"
     "appmenu" -> "Ứng dụng: " + if (appMenuOn) "BẬT" else "TẮT"
