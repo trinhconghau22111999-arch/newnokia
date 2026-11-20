@@ -70,7 +70,9 @@ const val HIDE_NON_VIDEO_JS = """
     'ytm-compact-playlist-renderer,ytm-playlist-renderer,ytm-grid-playlist-renderer,' +
     'ytm-compact-channel-renderer,ytm-channel-renderer,ytm-grid-channel-renderer,ytm-channel-list-renderer,' +
     'ytm-reel-item-renderer,ytm-shorts-lockup-view-model,ytm-shorts-lockup-view-model-v2,' +
-    'button[aria-label*="Khám phá" i],button[aria-label*="Explore" i],a[href*="/feed/explore"]' +
+    'button[aria-label*="Khám phá" i],button[aria-label*="Explore" i],a[href*="/feed/explore"],' +
+    'ytm-feed-filter-chip-bar-renderer,ytm-chip-cloud-renderer,ytm-chip-cloud-chip-renderer,ytm-chip-bar-renderer,' +
+    'ytd-feed-filter-chip-bar-renderer,ytd-chip-cloud-renderer,ytd-chip-cloud-chip-renderer' +
     '{display:none!important}' +
     'ytm-browse,ytm-home-page,ytm-rich-grid-renderer,ytm-section-list-renderer{padding-top:0!important;margin-top:0!important}';
   (document.head || document.documentElement).appendChild(st);
