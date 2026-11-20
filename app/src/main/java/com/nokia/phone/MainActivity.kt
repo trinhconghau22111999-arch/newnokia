@@ -1897,8 +1897,8 @@ fun Phone() {
                 "power" -> startPowerEdit(sel)
                 "powerEdit" -> savePower()
                 "sound" -> when (sel) {
-                    0 -> ringPick.launch(Sound.pickerIntent(ctx, RingtoneManager.TYPE_RINGTONE))
-                    1 -> open("volume")
+                    0 -> open("volume")
+                    1 -> ringPick.launch(Sound.pickerIntent(ctx, RingtoneManager.TYPE_RINGTONE))
                     else -> alarmPick.launch(Sound.pickerIntent(ctx, RingtoneManager.TYPE_ALARM))
                 }
                 "volume" -> adjustVol(1, true)
@@ -2169,7 +2169,7 @@ fun Phone() {
                                 }
                                 Text("◀ ▶ chọn ô    ▲ ▼ đổi giá trị", color = INK, fontSize = 12.sp, fontFamily = MONO)
                             }
-                            "sound" -> Lines(listOf("Nhạc chuông: $ringName", "Âm lượng", "Nhạc báo thức: $alarmName"), sel, tapItem, scroll)
+                            "sound" -> Lines(listOf("Âm lượng", "Nhạc chuông: $ringName", "Nhạc báo thức: $alarmName"), sel, tapItem, scroll)
                             "volume" -> Lines(VOL.map { (n, st) -> volTick.let { volLine(ctx, n, st) } }, sel, tapItem, scroll)
                             "reset" -> Column(Modifier.fillMaxSize().padding(8.dp), Arrangement.Center, Alignment.CenterHorizontally) {
                                 Text("Khôi phục cài đặt gốc?", color = INK, fontSize = 20.sp, fontWeight = FontWeight.Bold,

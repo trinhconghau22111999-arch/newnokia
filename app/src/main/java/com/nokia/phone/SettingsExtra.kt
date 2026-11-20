@@ -72,7 +72,7 @@ fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, sms
     "homewall" -> "Hình nền chính: " + if (homeWallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "launcher" -> "Chọn launcher"
     "appmenu" -> "Menu ứng dụng (trên máy): " + if (appMenuOn) "BẬT" else "TẮT"
-    "sound" -> "Cài đặt âm thanh"
+    "sound" -> "Âm thanh"
     "wifi" -> "Wifi: " + (if (!Wifi.isOn(ctx)) "TẮT" else Wifi.currentSsid(ctx) ?: "BẬT")
     "sim" -> "SIM"
     "airplane" -> "Chế độ máy bay: " + if (airplaneOn(ctx)) "BẬT" else "TẮT"
