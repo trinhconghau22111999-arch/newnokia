@@ -1875,6 +1875,7 @@ fun Phone() {
                         "bt" -> toggleBt()
                         "appmenu" -> { appMenuOn = !appMenuOn; ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("app_menu", appMenuOn).apply() }
                         "dialer" -> requestDialer()
+                        "update" -> Updater.start(ctx)
                         "iconrow" -> { iconRowOn = !iconRowOn; ctx.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("icon_row", iconRowOn).apply() }
                         "smsapp" -> requestSmsApp()
                         else -> open("reset")

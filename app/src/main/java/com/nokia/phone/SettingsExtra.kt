@@ -40,7 +40,7 @@ import kotlin.math.roundToInt
 /** Các mục trong Menu > Cài đặt (thứ tự hiển thị). */
 val SETTINGS = listOf(
     "sim", "wifi", "sound", "brightness", "power", "bt", "wallpaper", "homewall",
-    "airplane", "hotspot", "battery", "storage", "accounts", "dialer", "iconrow", "reset", "launcher", "appmenu"
+    "airplane", "hotspot", "battery", "storage", "accounts", "dialer", "iconrow", "reset", "launcher", "appmenu", "update"
 )
 
 /** Các màn hình có số liệu thay đổi theo thời gian -> làm tươi mỗi giây. */
@@ -71,6 +71,7 @@ fun settingLabel(ctx: Context, id: String, btOn: Boolean, dialerOn: Boolean, sms
     "wallpaper" -> "Hình nền khóa: " + if (wallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "homewall" -> "Hình nền chính: " + if (homeWallOn) "đã chọn ảnh" else "mặc định (chọn ảnh)"
     "launcher" -> "Chọn launcher"
+    "update" -> "Cập nhật"
     "appmenu" -> "Menu ứng dụng (trên máy): " + if (appMenuOn) "BẬT" else "TẮT"
     "sound" -> "Âm thanh"
     "wifi" -> "Wifi: " + (if (!Wifi.isOn(ctx)) "TẮT" else Wifi.currentSsid(ctx) ?: "BẬT")
