@@ -383,7 +383,7 @@ fun isBtOn(ctx: Context): Boolean = try {
 
 /** Đồng hồ, ngày và dòng hướng dẫn mở khóa (dùng chung cho màn hình khóa và khung xem thử hình nền). */
 @Composable
-fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false, hint: Boolean = true, light: Boolean = false) {
+fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Boolean = false, hint: Boolean = true, light: Boolean = false, charging: Boolean = false) {
     // Có ảnh nền do người dùng chọn -> chữ trắng (kèm bóng mờ nhẹ cho dễ đọc); nền mặc định -> chữ đen như cũ
     // light = ảnh nền sáng -> chữ đen (bóng trắng mờ); ảnh tối -> chữ trắng (bóng đen mờ)
     val c = if (onPhoto && light) Color.Black else Color.White
@@ -396,11 +396,14 @@ fun BoxScope.LockTexts(time: String, date: String, armed: Boolean, onPhoto: Bool
     if (hint) Text(if (armed) "Bấm  *  để mở khóa" else "Bấm \"Menu\" và \"*\" để mở khóa",
         Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
         color = c, style = sh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
+    // Đang cắm sạc: hiện "Đang sạc" ngay dưới vòng tròn, giữa khung hiển thị
+    if (charging) Text("Đang sạc", Modifier.align(Alignment.Center).offset(y = 80.dp),
+        color = c, style = sh, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
 }
 
 /** Màn hình khóa mặc định: hình nền che toàn bộ khung hiển thị, bấm Menu rồi * để mở khóa. */
 @Composable
-fun LockScreen(time: String, date: String, armed: Boolean, wall: ImageBitmap? = null) {
+fun LockScreen(time: String, date: String, armed: Boolean, wall: ImageBitmap? = null, charging: Boolean = false) {
     Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { } }) {
         if (wall != null) {
             Image(wall, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -412,7 +415,7 @@ fun LockScreen(time: String, date: String, armed: Boolean, wall: ImageBitmap? = 
             drawCircle(HUD_PINK.copy(alpha = 0.30f), radius = w * 0.33f, center = Offset(w * 0.5f, h * 0.62f), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
             drawLine(Brush.horizontalGradient(listOf(HUD_CYAN, HUD_PINK)), Offset(0f, h * 0.62f), Offset(w, h * 0.62f), 2.dp.toPx())
         }
-        LockTexts(time, date, armed, wall != null)
+        LockTexts(time, date, armed, wall != null, charging = charging)
     }
 }
 
@@ -2354,7 +2357,7 @@ fun Phone() {
                         }
                     }
                 }
-                if (locked) LockScreen(now.take(5), dateNow(), lockAt != 0L, wallBmp)
+                if (locked) LockScreen(now.take(5), dateNow(), lockAt != 0L, wallBmp, chargeInfo != null)
                 wallPick?.let { pb ->
                     val pbLight = remember(pb) { Wallpaper.isLight(pb) }
                     if (!locked) WallPreview(pb, wallFx, wallFy,
