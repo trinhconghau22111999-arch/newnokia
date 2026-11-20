@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+permissions:
+  contents: write   # cần để tạo Release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,7 +46,16 @@ jobs:
             tail -30 build.log
           fi
           exit $code
-      - uses: actions/upload-artifact@v4
-        with:
-          name: phonecuibap2-apk
-          path: app/build/outputs/apk/release/*.apk
+      - name: Đưa APK lên Releases (tên file cố định)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          cp "$APK" phonecuibap.apk
+          # Mỗi lần build tạo một Release mới (giữ lịch sử), đánh dấu là bản mới nhất.
+          # Đường dẫn tải không đổi: releases/latest/download/phonecuibap.apk
+          gh release create "build-${GITHUB_RUN_NUMBER}" phonecuibap.apk \
+            --target "$GITHUB_SHA" \
+            --title "Bản build ${GITHUB_RUN_NUMBER}" \
+            --notes "Commit ${GITHUB_SHA::7}" \
+            --latest
