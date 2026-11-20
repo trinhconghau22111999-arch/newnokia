@@ -2163,7 +2163,7 @@ fun Phone() {
                                     Text(":", color = INK, fontSize = 48.sp, fontWeight = FontWeight.Bold, fontFamily = MONO)
                                     FieldBox("%02d".format(em), editField == 1, 48) { if (editField == 1) editMove("UP") else editField = 1 }
                                     Spacer(Modifier.width(10.dp))
-                                    FieldBox((if (pEdit == 0) "Tắt: " else "Bật: ") + if (eon) "BẬT" else "TẮT", editField == 2, 16) {
+                                    FieldBox((if (eon) "Bật" else "Tắt") + "...", editField == 2, 16) {
                                         if (editField == 2) editMove("UP") else editField = 2
                                     }
                                 }
