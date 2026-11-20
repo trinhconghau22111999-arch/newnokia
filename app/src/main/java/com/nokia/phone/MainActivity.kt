@@ -339,7 +339,7 @@ fun MonthCalendar(offset: Int, onStep: (Int) -> Unit = {}) {
                         if (d in 1..days) {
                             val l = lunar[d - 1]
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(d.toString(), color = fg, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                Text(d.toString(), color = if (isToday) fg else Color.White, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 17.sp)   // dương lịch: trắng (ô hôm nay giữ màu tương phản)
                                 Text(if (l.day == 1) "1/${l.month}" else l.day.toString(), color = fg,
                                     fontFamily = MONO, fontSize = 10.sp, maxLines = 1,
                                     fontWeight = if (l.day == 1) FontWeight.Bold else FontWeight.Normal)
