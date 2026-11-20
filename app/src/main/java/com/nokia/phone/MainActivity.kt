@@ -317,7 +317,7 @@ fun MonthCalendar(offset: Int, onStep: (Int) -> Unit = {}) {
             Text("◀", Modifier.clickable { onStep(-1) }.padding(horizontal = 16.dp, vertical = 4.dp),
                 color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text("Tháng $month/$year", Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1,
-                color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                color = Color.White, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text("▶", Modifier.clickable { onStep(1) }.padding(horizontal = 16.dp, vertical = 4.dp),
                 color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
@@ -350,7 +350,7 @@ fun MonthCalendar(offset: Int, onStep: (Int) -> Unit = {}) {
             }
         }
         Text(footer, Modifier.fillMaxWidth().padding(vertical = 3.dp), textAlign = TextAlign.Center,
-            color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 2)
+            color = Color.White, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 2)
     }
 }
 
