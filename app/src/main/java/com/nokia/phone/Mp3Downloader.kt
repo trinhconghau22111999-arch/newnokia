@@ -203,8 +203,8 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
             val w = web ?: return
             if (!running) return
             if (fetching) {
-                // Đang tải tệp: chỉ coi là còn sống khi có dữ liệu về trong 40 giây, nếu không thì báo lỗi (trước đây treo mãi ở 39%)
-                if (System.currentTimeMillis() - lastByteAt > 40_000L) { fetchFailed("Tải lỗi: máy chủ không gửi dữ liệu, thử lại sau"); return }
+                // Đang tải tệp: chỉ coi là còn sống khi có dữ liệu về trong 10 giây, nếu không thì báo lỗi (trước đây treo mãi ở 39%)
+                if (System.currentTimeMillis() - lastByteAt > 10_000L) { fetchFailed("Tải lỗi: máy chủ không gửi dữ liệu trong 10 giây"); return }
                 main.postDelayed(this, 1000); return
             }
             // Kẹt một bước quá lâu (không thấy ô dán link / không ra nút tải) -> báo lỗi kèm chi tiết, đừng treo mãi
@@ -220,12 +220,12 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
                     r == "filled" -> { fills++; lastActAt = System.currentTimeMillis(); onStatus("Đang chuyển đổi sang mp3...") ; phase2At = 0L
                         if (fills > 3) { finish(false, "Trang tải nhạc không phản hồi"); return@evaluateJavascript } }
                     r.startsWith("link:") -> {
-                        if (++clicks > 4) { stall(w); return@evaluateJavascript }
+                        if (++clicks > 2) { stall(w); return@evaluateJavascript }
                         phase2At = System.currentTimeMillis(); lastActAt = phase2At; onFile(r.substring(5), null)
                     }
                     r == "click" -> {
-                        // Bấm nút Tải xuống mãi mà không ra tệp (trang mở quảng cáo / không phản hồi): bấm tối đa 4 lần rồi báo lỗi
-                        if (++clicks > 4) { stall(w); return@evaluateJavascript }
+                        // Bấm nút Tải xuống mãi mà không ra tệp (trang mở quảng cáo / không phản hồi): bấm tối đa 2 lần rồi báo lỗi
+                        if (++clicks > 2) { stall(w); return@evaluateJavascript }
                         phase2At = System.currentTimeMillis(); lastActAt = phase2At; onStatus("Đang tải về...")
                     }
                     r == "quality" -> { lastActAt = System.currentTimeMillis(); onStatus("Đang chọn chất lượng cao nhất...") }
@@ -270,7 +270,7 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
             web?.evaluateJavascript(js, null)
             return
         }
-        if (fetches >= 3) { fetchFailed("Tải lỗi: thử 3 liên kết đều không được"); return }
+        if (fetches >= 2) { fetchFailed("Tải lỗi: thử 2 liên kết đều không được"); return }
         fetches++
         fetching = true
         lastByteAt = System.currentTimeMillis()
