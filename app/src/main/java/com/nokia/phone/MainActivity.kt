@@ -598,6 +598,7 @@ fun Phone() {
     var libTitle by remember { mutableStateOf("") }      // tên bài đang phát
     var libLocal by remember { mutableStateOf(false) }   // đang nghe bản đã tải trong app (không dùng YouTube)
     var libHave by remember { mutableStateOf(false) }    // bài đang phát đã có bản tải trong app -> ẩn nút Tải xuống
+    var libReady by remember { mutableStateOf(false) }   // video YouTube đã vào trang xem -> bấm Tải xuống được (chưa thì nút mờ)
     var libBusy by remember { mutableStateOf(false) }    // bài đang hiển thị đang được tải
     var dlTitle by remember { mutableStateOf("") }      // bài đang tải (rỗng = không tải gì); tải vẫn chạy tiếp khi thoát khỏi trang phát nhạc
     var libPaused by remember { mutableStateOf(false) }  // bản đã tải: đang tạm dừng
@@ -753,6 +754,10 @@ fun Phone() {
         val r = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { btOn = isBtOn(c) } }
         try { ctx.registerReceiver(r, IntentFilter(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED)) } catch (_: Exception) {}
         onDispose { try { ctx.unregisterReceiver(r) } catch (_: Exception) {} }
+    }
+    LaunchedEffect(screen, libPlay, libHave, libLocal) {
+        libReady = false
+        while (screen == "youtube" && libPlay && !libHave && !libLocal) { libReady = ytPane?.currentVideoUrl() != null; delay(500) }
     }
     LaunchedEffect(screen, uiResumed) { if (screen in INFO_SCREENS && uiResumed) while (true) { infoTick++; delay(1000) } }
     LaunchedEffect(gIdx, gIds, screen) {
@@ -2208,10 +2213,10 @@ fun Phone() {
                                             }
                                         }
                                         // Đã có bản tải trong app (hoặc đang nghe bản đó): ẩn nút Tải xuống
-                                        if (!libHave && !libLocal) Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(44.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
+                                        if (!libHave && !libLocal) Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(44.dp).clip(ChamferShape(8.dp)).background(INK.copy(alpha = if (libReady || libBusy) 1f else 0.3f)).clickable { libDownload() },
                                             contentAlignment = Alignment.Center) {
                                             Text(if (libBusy) "ĐANG TẢI ${libPct}%" else "TẢI XUỐNG", Modifier.padding(bottom = if (libBusy) 5.dp else 0.dp),
-                                                color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                                color = LCD.copy(alpha = if (libReady || libBusy) 1f else 0.5f), fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                             // Thanh tiến độ % ngay trên nút
                                             if (libBusy) Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(6.dp).background(LCD.copy(alpha = 0.3f))) {
                                                 Box(Modifier.fillMaxHeight().fillMaxWidth((libPct / 100f).coerceIn(0f, 1f)).background(LCD))
