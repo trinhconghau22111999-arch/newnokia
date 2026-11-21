@@ -2193,8 +2193,8 @@ fun Phone() {
                                     Column(Modifier.fillMaxSize().background(LCD).pointerInput(Unit) { detectTapGestures { } }
                                         .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 0.dp)) {   // nút Tải xuống / tiến độ sát đáy khung hơn
                                         // Đĩa nhạc hình tròn nằm dưới tên bài, tên bài nằm trong nhãn đĩa
-                                        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                            val d = minOf(maxWidth, maxHeight)
+                                        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                                            val d = minOf(maxWidth, maxHeight - 8.dp)   // giữ nguyên cỡ đĩa như trước, chừa 8dp trống giữa đĩa và nút
                                             Box(Modifier.size(d), contentAlignment = Alignment.Center) {
                                                 Canvas(Modifier.fillMaxSize()) {
                                                     val r = size.minDimension / 2f
