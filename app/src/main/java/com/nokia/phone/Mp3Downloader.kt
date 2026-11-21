@@ -183,7 +183,7 @@ class Mp3Downloader(private val act: Activity) {
                     r.startsWith("link:") -> { phase2At = System.currentTimeMillis(); onFile(r.substring(5), null) }
                     r == "click" -> { phase2At = System.currentTimeMillis(); onStatus("Đang tải về...") }
                     r == "quality" -> onStatus("Đang chọn chất lượng cao nhất...")
-                    r == "captcha" -> { sawCaptcha = true; onStatus("Trang yêu cầu xác minh, đang đợi...") }
+                    r == "captcha" -> { sawCaptcha = true; finish(false, "Tải lỗi: trang yêu cầu xác minh"); return@evaluateJavascript }
                     r.startsWith("err:") -> { /* bỏ qua, thử lại nhịp sau */ }
                 }
                 // Đã bấm Tải xuống mà 25 giây không thấy tệp -> cho phép tìm nút khác
@@ -258,13 +258,9 @@ class Mp3Downloader(private val act: Activity) {
         id3 || sync || ftyp || ogg || riff
     } catch (_: Exception) { false }
 
-    /** Một lần tải hỏng: thử lại với nút/liên kết khác nếu còn lượt, hết lượt thì báo lỗi. */
+    /** Tải hỏng: báo lỗi ngay. */
     private fun fetchFailed(msg: String) {
-        main.post {
-            fetching = false
-            if (fetches >= 3) finish(false, msg)
-            else web?.evaluateJavascript("(function(){if(window.__dl)window.__dl.phase=1})()", null)
-        }
+        main.post { finish(false, msg) }
     }
 
     private fun finish(ok: Boolean, msg: String) {
@@ -276,7 +272,7 @@ class Mp3Downloader(private val act: Activity) {
             try { w.stopLoading(); w.loadUrl("about:blank"); w.destroy() } catch (_: Exception) {}
         }
         web = null
-        onResult(ok, msg)
+        onResult(ok, if (ok || msg.startsWith("Tải lỗi")) msg else "Tải lỗi: " + msg)
     }
 
     /** Hủy khi rời màn hình / thoát app. */
