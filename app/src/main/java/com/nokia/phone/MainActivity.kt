@@ -2204,7 +2204,7 @@ fun Phone() {
                                                         style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
                                                     drawCircle(INK, r * 0.70f, center, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
                                                 }
-                                                Text(libTitle, Modifier.width(d * 0.58f), color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                                                Text(libTitle, Modifier.width(d * 0.58f), color = Color.White, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 20.sp,
                                                     lineHeight = 26.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                                             }
                                         }
@@ -2445,14 +2445,14 @@ fun Phone() {
                                     Hint("\u00A0")   // ẩn dòng hướng dẫn nhưng giữ nguyên chiều cao để vị trí danh sách không đổi
                                     Spacer(Modifier.height(4.dp))
                                     val catLines = remember { Library.CATS.mapIndexed { i, c -> "${i + 1}. ${c.name}" } }
-                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f) }   // chữ +20%, khoảng cách giữa dòng x2
+                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.White) }   // chữ +20%, khoảng cách giữa dòng x2; ô đang chọn chữ trắng
                                 } else {
                                     val cat = Library.CATS[libCat.coerceIn(0, Library.CATS.lastIndex)]
                                     Head("${cat.name.uppercase()} (${cat.items.size})")
                                     Hint("\u00A0")
                                     Spacer(Modifier.height(4.dp))
                                     val itemLines = remember(libCat) { cat.items.mapIndexed { i, t -> "${i + 1}. ${t.title}" } }
-                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f) }
+                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.White) }
                                 }
                             }
                             "snake" -> Column(Modifier.fillMaxSize()) {
