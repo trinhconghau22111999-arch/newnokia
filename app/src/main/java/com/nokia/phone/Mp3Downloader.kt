@@ -41,13 +41,20 @@ var o=[];o.push('url='+location.href);o.push('size='+innerWidth+'x'+innerHeight)
 var ins=document.querySelectorAll('input');var a=[];
 for(var i=0;i<ins.length;i++)a.push((ins[i].type||'')+(vis(ins[i])?'+':'-')+':'+(ins[i].value||'').slice(0,60));
 o.push('inputs='+a.join(' | '));
-var bs=document.querySelectorAll('a[href],button');var b=[];
-for(var j=0;j<bs.length&&b.length<25;j++){if(vis(bs[j]))b.push((bs[j].textContent||'').trim().slice(0,30)+(bs[j].href?' > '+bs[j].href.slice(0,70):''))}
+var bs=document.querySelectorAll('a[href],button,[role=button]');var all=[];
+for(var j=0;j<bs.length;j++){if(vis(bs[j])){var bt=(bs[j].textContent||'').trim().slice(0,30)||('aria:'+(bs[j].getAttribute('aria-label')||''));all.push(bt+(bs[j].disabled?' [disabled]':'')+(bs[j].href?' > '+bs[j].href.slice(0,60):''))}}
+var b=all.length>30?all.slice(0,5).concat(['...']).concat(all.slice(-25)):all;
 o.push('buttons='+b.join(' | '));
 var fi=null;for(var q=0;q<ins.length;q++){var tt=(ins[q].type||'text').toLowerCase();if((tt==='text'||tt==='url'||tt==='search')&&vis(ins[q])){fi=ins[q];break}}
 if(fi){var fc=fi.closest('form')||(fi.parentElement&&fi.parentElement.parentElement&&fi.parentElement.parentElement.parentElement)||fi.parentElement;o.push('form='+(fc?fc.outerHTML.replace(/\s+/g,' ').slice(0,900):''))}
 try{var sx=window.__dl;o.push('S='+JSON.stringify({phase:sx.phase,btn:sx.btn,n:sx.n,sel:sx.selDone,q:!!sx.qEl}))}catch(e){o.push('S=none')}
-o.push('text='+(document.body.innerText||'').replace(/\s+/g,' ').slice(0,300));
+var cbs=document.querySelectorAll('input[type=checkbox]');var cl=[];
+for(var cz=0;cz<cbs.length;cz++){if(vis(cbs[cz])){var cp=cbs[cz].closest('label')||cbs[cz].parentElement;cl.push('checked='+cbs[cz].checked+' '+(cp?cp.outerHTML.replace(/\s+/g,' ').slice(0,250):''))}}
+if(cl.length)o.push('checkbox='+cl.join(' || '));
+var dg=document.querySelector('[role=dialog],[aria-modal=true],dialog[open]');
+if(dg)o.push('dialog='+dg.outerHTML.replace(/\s+/g,' ').slice(0,900));
+var bt2=(document.body.innerText||'').replace(/\s+/g,' ');
+o.push('text='+bt2.slice(0,200));o.push('tail='+bt2.slice(-500));
 return o.join('\n')}catch(e){return 'dump err '+e}})()
 """
 
