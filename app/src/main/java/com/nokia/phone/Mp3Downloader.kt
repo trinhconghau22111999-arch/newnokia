@@ -57,6 +57,9 @@ var rm=[],al=document.querySelectorAll('body *');
 for(var rz=0;rz<al.length;rz++){var rt=(al[rz].textContent||'').trim().toLowerCase();if(rt.length<=14&&/^(tải xuống|tải về|download)/.test(rt)&&vis(al[rz]))rm.push(al[rz])}
 if(rm.length){o.push('dlmatch='+rm.slice(0,5).map(function(e){return e.tagName+'.'+String(e.className||'').slice(0,50)+(e.href?' href='+e.href.slice(0,60):'')+(e.disabled?' [disabled]':'')}).join(' | '));
  var rp=rm[0].parentElement&&rm[0].parentElement.parentElement?rm[0].parentElement.parentElement:rm[0];o.push('dlhtml='+rp.outerHTML.replace(/\s+/g,' ').slice(0,900))}
+var bo=[],bl=document.querySelectorAll('button,[role=button]');
+for(var bz=0;bz<bl.length;bz++){if(vis(bl[bz]))bo.push(((bl[bz].textContent||'').trim().slice(0,25)||('aria:'+(bl[bz].getAttribute('aria-label')||'')))+(bl[bz].disabled?' [disabled]':''))}
+o.push('buttonsOnly='+bo.join(' | '));
 var bt2=(document.body.innerText||'').replace(/\s+/g,' ');
 o.push('text='+bt2.slice(0,200));o.push('tail='+bt2.slice(-500));
 return o.join('\n')}catch(e){return 'dump err '+e}})()
@@ -118,18 +121,21 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
    var qh=S.qEl.href||'';
    if(qh&&qh.indexOf('javascript:')!==0&&qh!==location.href&&qh.charAt(qh.length-1)!=='#'&&/^https?:/.test(qh)&&!/savemp3\.net\/[a-z]{2,}\//.test(qh)){S.phase=2;return 'link:'+qh}
    S.qEl.click();return 'quality'}
-  // Nút "Tải xuống" của trang không hẳn là <a>/<button>: tìm phần tử bất kỳ có chữ đúng như vậy rồi bấm vào phần tử bấm được gần nhất
+  // Kết quả hiện ra: nút tải thật là nút có chữ đúng "MP3" (chữ "Tải xuống" phía trên chỉ là nhãn trang trí, không bấm được); bấm một lần
+  if(!S.mp3Clicked){var mb=document.querySelectorAll('button,[role=button]');
+   for(var m1=0;m1<mb.length;m1++){var me=mb[m1];
+    if(vis(me)&&!me.disabled&&!(S.snap&&S.snap.has(me))&&(me.textContent||'').trim().toLowerCase()==='mp3'){S.mp3Clicked=1;me.click();return 'mp3'}}}
+  // Sau đó: tìm phần tử bất kỳ có chữ "Tải xuống"/"Tải về" rồi bấm vào phần tử bấm được gần nhất (bỏ qua nhãn không bấm được)
   var ms=[],all2=document.querySelectorAll('body *');
   for(var g=0;g<all2.length;g++){var gt=(all2[g].textContent||'').trim().toLowerCase();
    if(gt.length<=14&&/^(tải xuống|tải về|download)/.test(gt)&&vis(all2[g]))ms.push(all2[g])}
-  if(ms.length){
-   var first=ms[0],deep=first;
-   for(var g2=1;g2<ms.length;g2++){if(first.contains(ms[g2]))deep=ms[g2]}
-   var tg=deep.closest('a[href],button,[role=button],[onclick]')||deep;
-   if(!tg.disabled&&tg.getAttribute('aria-disabled')!=='true'){
+  var tg=null;
+  for(var g2=0;g2<ms.length&&!tg;g2++){var cc=ms[g2].closest('a[href],button,[role=button],[onclick]');
+   if(cc&&vis(cc)&&!cc.disabled&&cc.getAttribute('aria-disabled')!=='true')tg=cc}
+  if(tg){
     var gh=tg.href||'';
     if(gh&&gh.indexOf('javascript:')!==0&&gh!==location.href&&gh.charAt(gh.length-1)!=='#'&&/^https?:/.test(gh)&&!/savemp3\.net\/[a-z]{2,}\//.test(gh)&&!/play\.google/.test(gh)){S.phase=2;return 'link:'+gh}
-    tg.click();S.phase=2;return 'click'}}
+    tg.click();S.phase=2;return 'click'}
   var els=document.querySelectorAll('a[href],button');
   for(var q=0;q<els.length;q++){var e=els[q];
    if(S.snap&&S.snap.has(e))continue;if(!vis(e))continue;
@@ -162,6 +168,7 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     private val netLog = mutableListOf<String>()   // các yêu cầu mạng gần nhất của WebView (bỏ ảnh/css/font) để chẩn đoán
     private val conLog = mutableListOf<String>()   // thông báo console của trang
     private fun logTo(l: MutableList<String>, s: String) { synchronized(l) { l.add(s); if (l.size > 14) l.removeAt(0) } }
+    private var mp3At = 0L              // lúc bấm nút MP3 trên trang (0 = chưa bấm)
     private var clicks = 0              // số lần bấm/nhận link tải; quá giới hạn -> báo lỗi, không lặp mãi
     private var lastByteAt = 0L         // lần cuối có dữ liệu về (hoặc lúc bắt đầu tải tệp)
     private var videoUrl = ""
@@ -195,7 +202,7 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     @SuppressLint("SetJavaScriptEnabled")
     fun start(videoUrl: String, dest: File, onStatus: (String) -> Unit, onResult: (Boolean, String) -> Unit, onProgress: (Int) -> Unit = {}) {
         if (running) return
-        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L; clicks = 0; lastByteAt = 0L
+        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L; clicks = 0; lastByteAt = 0L; mp3At = 0L
         this.videoUrl = videoUrl; this.dest = dest; this.onStatus = onStatus; this.onResult = onResult; this.onProgress = onProgress
         pct = 0; onProgress(0)
         startedAt = System.currentTimeMillis(); lastActAt = startedAt
@@ -264,9 +271,9 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
                 main.postDelayed(this, 1000); return
             }
             // Kẹt một bước quá lâu (không thấy ô dán link / không ra nút tải) -> báo lỗi kèm chi tiết, đừng treo mãi
-            if (System.currentTimeMillis() - lastActAt > (if (fills == 0) 25_000L else 45_000L)) { stall(w); return }
-            // Giới hạn tổng: 3 phút mà chưa bắt đầu tải được tệp thì dừng, dù bước nào cũng "có hoạt động"
-            if (System.currentTimeMillis() - startedAt > 180_000L) { stall(w); return }
+            if (System.currentTimeMillis() - lastActAt > (if (fills == 0) 25_000L else if (mp3At != 0L) 150_000L else 45_000L)) { stall(w); return }
+            // Giới hạn tổng: 5 phút mà chưa bắt đầu tải được tệp thì dừng, dù bước nào cũng "có hoạt động"
+            if (System.currentTimeMillis() - startedAt > 300_000L) { stall(w); return }
             val t = (System.currentTimeMillis() - startedAt) / 1000.0
             progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
             w.evaluateJavascript(STEP_JS.replace("%URL%", JSONObject.quote(videoUrl))) { raw ->
@@ -283,6 +290,11 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
                         // Bấm nút Tải xuống mãi mà không ra tệp (trang mở quảng cáo / không phản hồi): bấm tối đa 2 lần rồi báo lỗi
                         if (++clicks > 2) { stall(w); return@evaluateJavascript }
                         phase2At = System.currentTimeMillis(); lastActAt = phase2At; onStatus("Đang tải về...")
+                    }
+                    r == "mp3" -> {
+                        // Đã bấm nút MP3: video dài có thể phải chuyển đổi vài phút, nới thời gian chờ cho bước này
+                        mp3At = System.currentTimeMillis(); lastActAt = mp3At
+                        onStatus("Đang chuyển đổi, video dài có thể mất vài phút...")
                     }
                     r == "quality" -> { lastActAt = System.currentTimeMillis(); onStatus("Đang chọn chất lượng cao nhất...") }
                     r == "captcha" -> { sawCaptcha = true; finish(false, "Tải lỗi: trang yêu cầu xác minh"); return@evaluateJavascript }
