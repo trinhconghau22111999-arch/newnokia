@@ -2445,14 +2445,14 @@ fun Phone() {
                                     Hint("\u00A0")   // ẩn dòng hướng dẫn nhưng giữ nguyên chiều cao để vị trí danh sách không đổi
                                     Spacer(Modifier.height(4.dp))
                                     val catLines = remember { Library.CATS.mapIndexed { i, c -> "${i + 1}. ${c.name}" } }
-                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.White) }   // chữ +20%, khoảng cách giữa dòng x2; ô đang chọn chữ trắng
+                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.Black, textInk = Color.White) }   // chữ +20%, khoảng cách giữa dòng x2; ô đang chọn chữ đen, các dòng khác chữ trắng
                                 } else {
                                     val cat = Library.CATS[libCat.coerceIn(0, Library.CATS.lastIndex)]
                                     Head("${cat.name.uppercase()} (${cat.items.size})")
                                     Hint("\u00A0")
                                     Spacer(Modifier.height(4.dp))
                                     val itemLines = remember(libCat) { cat.items.mapIndexed { i, t -> "${i + 1}. ${t.title}" } }
-                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.White) }
+                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.Black, textInk = Color.White) }
                                 }
                             }
                             "snake" -> Column(Modifier.fillMaxSize()) {
@@ -2516,7 +2516,8 @@ fun Phone() {
 @Composable
 fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -> Unit, detail: List<String> = emptyList(), scale: Float = 1f, rowK: Float = 1.7f,
           ink: Color = INK, inkOn: Color = LCD, rowBg: Color = Color.Transparent,
-          style: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default, caps: Boolean = false) {
+          style: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default, caps: Boolean = false,
+          textInk: Color? = null) {   // textInk: màu chữ các dòng không được chọn (mặc định = ink, cũng là màu nền ô chọn)
     // ink / inkOn / rowBg / style: dùng khi có ảnh nền (menu): chữ theo độ sáng ảnh, hàng không tô nền, ô chọn tô màu chữ
     // detail: các dòng chữ nhỏ chèn ngay dưới ô đang chọn (không chọn được, không chiếm số thứ tự)
     val extra = if (sel in items.indices) detail.size else 0
@@ -2557,7 +2558,7 @@ fun Lines(items: List<String>, sel: Int, onTap: (Int) -> Unit, onScroll: (Int) -
                                     color = inkOn, fontFamily = MONO, fontWeight = FontWeight.Bold,
                                     fontSize = (14f * scale).sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip)
                             } else {
-                                Text(if (caps) items[i].uppercase() else items[i], color = ink, style = style, fontFamily = MONO, fontWeight = FontWeight.Bold,
+                                Text(if (caps) items[i].uppercase() else items[i], color = textInk ?: ink, style = style, fontFamily = MONO, fontWeight = FontWeight.Bold,
                                     fontSize = (14f * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
