@@ -2190,7 +2190,7 @@ fun Phone() {
                                     // YouTube vẫn phát (âm thanh) nhưng ẩn hẳn; hiện màn hình phát riêng: tên bài + nút Tải xuống
                                     Box(Modifier.fillMaxSize().alpha(0f)) { WebArea(ytPane?.view, fullView, false) { back() } }
                                     Column(Modifier.fillMaxSize().background(LCD).pointerInput(Unit) { detectTapGestures { } }
-                                        .padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                        .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 0.dp)) {   // nút Tải xuống / tiến độ sát đáy khung hơn
                                         // Đĩa nhạc hình tròn nằm dưới tên bài, tên bài nằm trong nhãn đĩa
                                         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                                             val d = minOf(maxWidth, maxHeight)
