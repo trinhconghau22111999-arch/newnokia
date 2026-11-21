@@ -277,6 +277,9 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
         main.postDelayed(tick, 1500)
     }
 
+    /** Đọc chữ trên trang: có câu "đã đạt đến giới hạn số lần tải" thì trả giờ chờ (mm:ss) hoặc "?" nếu không thấy giờ; không có thì "". */
+    private val LIMIT_JS = """(function(){try{var t=document.body?document.body.innerText:'';var m=t.match(/chuyển đổi lại sau\s*(\d{1,2}:\d{2})/i);if(m)return m[1];return /giới hạn số lần tải/i.test(t)?'?':''}catch(e){return ''}})()"""
+
     private val tick = object : Runnable {
         override fun run() {
             val w = web ?: return
@@ -292,6 +295,12 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
             if (System.currentTimeMillis() - startedAt > (if (mp3At != 0L) 480_000L else 300_000L)) { stall(w); return }
             val t = (System.currentTimeMillis() - startedAt) / 1000.0
             progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
+            // Trang báo hết lượt (giới hạn 3 bài / giờ): báo ngay kèm giờ được thử lại, không chờ hết thời gian rồi báo "kẹt"
+            if (fills > 0 && mp3At == 0L) w.evaluateJavascript(LIMIT_JS) { raw ->
+                if (!running) return@evaluateJavascript
+                val r = try { JSONObject("{\"v\":$raw}").optString("v") } catch (_: Exception) { "" }
+                if (r.isNotEmpty()) finish(false, "Tải lỗi: savemp3 giới hạn 3 bài mỗi giờ" + if (r != "?") ", thử lại sau $r" else ", thử lại sau ít phút")
+            }
             w.evaluateJavascript(STEP_JS.replace("%URL%", JSONObject.quote(videoUrl))) { raw ->
                 if (!running) return@evaluateJavascript
                 val r = try { JSONObject("{\"v\":$raw}").optString("v") } catch (_: Exception) { "" }
