@@ -1779,6 +1779,13 @@ fun Phone() {
                 "OK", "SOFTL" -> libDownload()
                 "SOFTR" -> back()
                 "END" -> open("home")
+                // ◀ lùi 30 giây, ▶ tới 30 giây (video YouTube đang phát ẩn phía sau)
+                "LEFT", "RIGHT" -> {
+                    val sec = if (k == "RIGHT") 30 else -30
+                    ytPane?.view?.evaluateJavascript(
+                        "(function(){var v=document.querySelector('video');if(!v)return;var d=v.duration;var t=v.currentTime+($sec);" +
+                        "if(d&&isFinite(d))t=Math.min(t,d-0.5);v.currentTime=Math.max(0,t);})()", null)
+                }
             }
             return
         }
