@@ -207,6 +207,10 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript(TOUCH_LOCK_JS, null)
                     setTouchLock(touchLock)
                     view?.evaluateJavascript("window.__wbLock=$touchLock", null)
+                    if (autoPlayFirst && (try { Uri.parse(url ?: "").path } catch (e: Exception) { null } ?: "").startsWith("/results")) {
+                        autoPlayFirst = false
+                        view?.evaluateJavascript(CLICK_FIRST_JS, null)
+                    }
                 }
             }
         }
@@ -341,6 +345,22 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     }
 
     fun search(q: String) { web.loadUrl("https://www.youtube.com/results?search_query=" + Uri.encode(q)) }
+    // Nhạc (người lớn tuổi): tìm rồi tự mở video đầu tiên (bỏ quảng cáo, shorts), khỏi phải chọn
+    @Volatile private var autoPlayFirst = false
+    private val CLICK_FIRST_JS = """
+(function(){
+ var n=0;
+ function go(){
+  var as=document.querySelectorAll('a[href*="/watch?v="]'),t=null;
+  for(var i=0;i<as.length;i++){var a=as[i];
+   if(a.closest('ytm-promoted-sparkles-web-renderer,ytm-promoted-video-renderer,ytd-ad-slot-renderer,ytd-promoted-sparkles-web-renderer,[class*="promoted"]'))continue;
+   if(a.href.indexOf('/shorts/')>=0)continue;
+   t=a;break}
+  if(t){location.href=t.href;return}
+  if(++n<30)setTimeout(go,400)}
+ go()})();
+""".trimIndent()
+    fun searchPlay(q: String) { autoPlayFirst = true; web.loadUrl("https://www.youtube.com/results?search_query=" + Uri.encode(q) + "&sp=EgIQAQ%253D%253D") }
     // Ve trang chu va xoa lich su duyet cu (nut ← khong quay lai video truoc do nua)
     private var clearHistoryOnFinish = false
     fun home() {

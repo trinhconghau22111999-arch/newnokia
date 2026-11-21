@@ -589,6 +589,10 @@ fun Phone() {
     val snake = remember { Snake() }
     // ---- App con YouTube / TV (tách từ repo TV): WebView nhúng ngay trong ô LCD phía trên
     var ytPane by remember { mutableStateOf<YouTubePane?>(null) }
+    var libCat by remember { mutableStateOf(-1) }        // Nhạc: -1 = danh sách mục, 0.. = danh sách bài của mục đó
+    var libFrom by remember { mutableStateOf(false) }    // đang nghe từ danh sách Nhạc: Về = quay lại danh sách
+    var libSel by remember { mutableStateOf(0) }         // dòng đã chọn trong danh sách Nhạc (để quay lại đúng chỗ)
+    var webPlay by remember { mutableStateOf(false) }    // tìm xong tự phát kết quả đầu tiên
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
     var remotePane by remember { mutableStateOf<RemotePane?>(null) }   // app con Điều khiển TV (remote app TV qua WebRTC)
     var remoteMicTick by remember { mutableIntStateOf(0) }            // nút giọng nói trên remote bấm -> tăng để mở micro
@@ -747,7 +751,6 @@ fun Phone() {
     LaunchedEffect(playing, recording, screen, uiResumed) {
         if ((screen == "recorder" || screen == "recording") && uiResumed) while (playing != null || recording) { recTick++; delay(250) }
     }
-    LaunchedEffect(screen, uiResumed) { if (screen == "music" && uiResumed) while (true) { mTick++; delay(300) } }
     DisposableEffect(Unit) { onDispose { Music.stop() } }
     DisposableEffect(screen) {
         val s = screen
@@ -1320,6 +1323,7 @@ fun Phone() {
     fun gridMove(d: Int) { if (apps.isNotEmpty()) sel = (sel + d).coerceIn(0, apps.lastIndex) }
     fun open(s: String) {
         if (s != "music") aiMusicQ = null
+        if (s != "youtube" && s != "music") libFrom = false
         if (s != "camera") aiShoot = false
         screen = s; sel = 0; monthOffset = 0
         if (s == "topup") {
@@ -1330,7 +1334,7 @@ fun Phone() {
             "youtube" -> {
                 ytPane?.destroy()
                 val a = ctx as? Activity
-                if (a != null) { val p = YouTubePane(a, webHost); ytPane = p; if (webQuery.isNotEmpty()) { p.search(webQuery); webQuery = "" } }
+                if (a != null) { val p = YouTubePane(a, webHost); ytPane = p; if (webQuery.isNotEmpty()) { if (webPlay) p.searchPlay(webQuery) else p.search(webQuery); webQuery = ""; webPlay = false } }
             }
             "tv" -> {
                 tvPane?.destroy()
@@ -1359,7 +1363,7 @@ fun Phone() {
             "calc" -> calc.clear()
             "recorder" -> loadRecs()
             "calllog" -> { clLoaded = false; need(listOf(Manifest.permission.READ_CALL_LOG)) { loadCalls() } }
-            "music" -> { mLoaded = false; mCur = -1; need(audioPerms) { loadTracks() } }
+            "music" -> { libCat = -1 }
             "contacts" -> { entry.reset(); entry.mode = 0; need(listOf(Manifest.permission.READ_CONTACTS)) { loadContacts() } }
             "messages" -> {
                 curKey = ""
@@ -1378,14 +1382,26 @@ fun Phone() {
     }
     /** Phím mũi tên ở màn hình chờ: mở thẳng app; bấm Về thì quay lại màn hình chờ (không qua Menu). */
     fun shortcut(s: String) { open(s); fromHome = true }
+    /** Nhạc: mở YouTube ngay trong ô LCD, tự tìm và phát kết quả đầu tiên. */
+    fun playLib(q: String, fromList: Boolean) {
+        libFrom = fromList; libSel = sel
+        webQuery = q; webPlay = true
+        open("youtube")
+    }
+    fun libOk() {
+        if (libCat < 0) { libCat = sel.coerceIn(0, Library.CATS.lastIndex); sel = 0 }
+        else Library.CATS.getOrNull(libCat)?.items?.getOrNull(sel)?.let { playLib(it.query, true) }
+    }
+
     fun back() {
         when (screen) {
             "home" -> {}
             "menu" -> open("home")
-            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (ytPane?.back() != true) open("menu")
+            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (libFrom) { libFrom = false; val c = libCat; val sl = libSel; open("music"); libCat = c; sel = sl } else if (ytPane?.back() != true) open("menu")
             "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
                 else if (fromHome) open("home") else open("menu")
+            "music" -> if (libCat >= 0) { val c = libCat; libCat = -1; sel = c } else if (fromHome) open("home") else open("menu")
             "alarmEdit" -> screen = "clock"
             "powerEdit" -> { screen = "power"; sel = pEdit }
             "sound", "reset", "wifi", "sim", "brightness", "battery", "storage", "accounts", "power" -> {
@@ -1498,7 +1514,14 @@ fun Phone() {
                 if (c.shoot) Toast.makeText(ctx, "Chụp sau 3 giây...", Toast.LENGTH_SHORT).show()
             }
             is AiCmd.Gallery -> open("gallery")
-            is AiCmd.Music -> { aiMusicQ = c.query; open("music") }
+            is AiCmd.Music -> {
+                val q = c.query
+                if (q.isEmpty()) open("music")
+                else {
+                    val hit = AiMatch.rank(Library.ALL.map { plain(it.title) }, q).firstOrNull()
+                    playLib(if (hit != null) Library.ALL[hit].query else q, false)
+                }
+            }
             is AiCmd.Open -> aiOpen(c.id)
             is AiCmd.OpenApp -> {
                 val pm = ctx.packageManager
@@ -1808,13 +1831,13 @@ fun Phone() {
             "accounts" -> maxOf(Accts.google(ctx).size, 1); "power" -> 2
             "contacts" -> maxOf(cShown.size, 1); "messages" -> threads.size + 1
             "thread" -> threadMsgs.size + 1; "msgview" -> maxOf(threadMsgs.size, 1); "recorder" -> recs.size + 1
-            "calllog" -> maxOf(calls.size, 1); "music" -> maxOf(tracks.size, 1)
+            "calllog" -> maxOf(calls.size, 1); "music" -> if (libCat < 0) Library.CATS.size else maxOf(Library.CATS.getOrNull(libCat)?.items?.size ?: 1, 1)
             else -> 1 }
         when (k) {
             "UP", "LEFT" -> when (screen) {
                 "home" -> if (dial.isNotEmpty()) { if (k == "LEFT") dialPos = maxOf(dialPos.coerceIn(0, dial.length) - 1, 0) }   // đang nhập số: ▲ không làm gì, ◀ đưa con trỏ sang trái
                 else shortcut(if (k == "UP") "clock" else "calendar")      // chưa nhập số: ▲ Đồng hồ, ◀ Lịch
-                "music" -> if (k == "LEFT") musicStep(-1) else sel = maxOf(sel - 1, 0)
+                "music" -> sel = maxOf(sel - 1, 0)
                 "snake" -> snake.turn(if (k == "UP") 0 to -1 else -1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "UP") -APP_COLS else -1) else sel = maxOf(sel - 1, 0)
                 "recording" -> if (k == "UP") togglePause()   // chỉ ▲ tạm dừng / tiếp tục; ◀ không làm gì
@@ -1835,7 +1858,7 @@ fun Phone() {
             "DOWN", "RIGHT" -> when (screen) {
                 "home" -> if (dial.isNotEmpty()) { if (k == "RIGHT") dialPos = minOf(dialPos.coerceIn(0, dial.length) + 1, dial.length) }   // đang nhập số: ▼ không làm gì, ▶ đưa con trỏ sang phải
                 else shortcut(if (k == "DOWN") "calc" else "camera")      // chưa nhập số: ▼ Máy tính, ▶ Máy ảnh
-                "music" -> if (k == "RIGHT") musicStep(1) else sel = minOf(sel + 1, size - 1)
+                "music" -> sel = minOf(sel + 1, size - 1)
                 "snake" -> snake.turn(if (k == "DOWN") 0 to 1 else 1 to 0)
                 "apps" -> if (appsMode == 1) gridMove(if (k == "DOWN") APP_COLS else 1) else sel = minOf(sel + 1, size - 1)
                 "calendar" -> if (k == "RIGHT") monthOffset++   // ▲▼ không phản hồi
@@ -1924,8 +1947,7 @@ fun Phone() {
                 "gallery" -> if (k == "SOFTL") askDeletePhoto()     // phím mềm trái = Xóa ảnh
                 "calllog" -> if (!granted(Manifest.permission.READ_CALL_LOG)) need(listOf(Manifest.permission.READ_CALL_LOG)) { loadCalls() }
                     else calls.getOrNull(sel)?.let { callNow(it.number) }
-                "music" -> if (!audioPerms.all { granted(it) }) need(audioPerms) { loadTracks() }
-                    else if (tracks.isNotEmpty()) { if (sel == mCur && Music.active) Music.toggle() else playTrack(sel) }
+                "music" -> libOk()
             }
             "SOFTR" -> if (screen == "home") { if (dial.isNotEmpty()) dialDel() else shortcut("ai") }
                 else if (screen == "compose" && cStage == 0 && cTo.isNotEmpty()) { cTo = cTo.dropLast(1); cName = "" }
@@ -1961,14 +1983,7 @@ fun Phone() {
                     askDeleteSms(smsAll.filter { addrKey(it.addr) == t.key }, "messages", true, t.name) }
                 "thread" -> if (k == "#" && sel > 0) askDeleteSms(listOfNotNull(threadMsgs.getOrNull(sel - 1)), "thread", false)
                 "msgview" -> if (k == "#") askDeleteSms(listOfNotNull(threadMsgs.getOrNull(mv)), "thread", false)
-                "music" -> when (k) {
-                    "4" -> Music.seek(-10_000L)                                  // tua lùi 10 giây
-                    "6" -> Music.seek(10_000L)                                   // tua tới 10 giây
-                    "5" -> if (Music.active) Music.toggle() else if (tracks.isNotEmpty()) playTrack(sel)
-                    "0" -> { Music.stop(); mCur = -1 }
-                    "2" -> adjustMusicVol(1)
-                    "8" -> adjustMusicVol(-1)
-                }
+                "music" -> {}
             }
         }
     }
@@ -1997,7 +2012,7 @@ fun Phone() {
         "youtube", "tv" -> if (ytVoice == 1) "Xong" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
         "remote" -> if (ytVoice == 1) "Xong" else ""   // ẩn nút AI: đã có nút GIỌNG NÓI trong màn hình; khi đang nghe vẫn hiện "Xong"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
-        "music" -> if (Music.active && sel == mCur) (if (Music.paused) "Tiếp" else "Tạm dừng") else "Phát"
+        "music" -> if (libCat < 0) "Mở" else "Phát"
         else -> ""
     }
     val right = when (screen) {
@@ -2305,19 +2320,19 @@ fun Phone() {
                                 }
                             }
                             "music" -> Column(Modifier.fillMaxSize()) {
-                                val t = mTick
-                                val mAudioOk = audioPerms.all { granted(it) }
-                                Head("NHẠC  (${tracks.size})")
-                                if (!mAudioOk) Box(Modifier.weight(1f)) { Msg("Cần quyền truy cập nhạc\n(bấm OK để cấp)") }
-                                else if (tracks.isEmpty()) Box(Modifier.weight(1f)) {
-                                    Msg(if (mLoaded) "Không thấy bài nhạc nào\ntrong bộ nhớ / thẻ nhớ" else "Đang tải...")
-                                } else {
-                                    Hint(if (Music.active && mCur in tracks.indices) musicProgress() else "OK:phát ◀▶:bài 4/6:tua")
-                                    Hint(tracks.getOrNull(sel)?.let { trackInfo(it) } ?: "")
+                                if (libCat < 0) {
+                                    Head("NHẠC")
+                                    Hint("OK:chọn mục  ▲▼:đổi mục")
                                     Spacer(Modifier.height(4.dp))
-                                    val isPaused = Music.paused
-                                    val mLines = remember(tracks, mCur, isPaused) { musicLines(tracks, mCur, isPaused) }
-                                    Box(Modifier.weight(1f)) { Lines(mLines, sel, tapItem, scroll) }
+                                    val catLines = remember { Library.CATS.mapIndexed { i, c -> "${i + 1}. ${c.name}" } }
+                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll) }
+                                } else {
+                                    val cat = Library.CATS[libCat.coerceIn(0, Library.CATS.lastIndex)]
+                                    Head("${cat.name.uppercase()} (${cat.items.size})")
+                                    Hint("OK:phát  Về:về danh sách mục")
+                                    Spacer(Modifier.height(4.dp))
+                                    val itemLines = remember(libCat) { cat.items.mapIndexed { i, t -> "${i + 1}. ${t.title}" } }
+                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll) }
                                 }
                             }
                             "snake" -> Column(Modifier.fillMaxSize()) {
