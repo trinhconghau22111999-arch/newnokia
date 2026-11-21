@@ -207,9 +207,15 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     view?.evaluateJavascript(TOUCH_LOCK_JS, null)
                     setTouchLock(touchLock)
                     view?.evaluateJavascript("window.__wbLock=$touchLock", null)
-                    if (autoPlayFirst && (try { Uri.parse(url ?: "").path } catch (e: Exception) { null } ?: "").startsWith("/results")) {
+                    val pagePath = (try { Uri.parse(url ?: "").path } catch (e: Exception) { null } ?: "")
+                    if (autoPlayFirst && pagePath.startsWith("/results")) {
                         autoPlayFirst = false
                         view?.evaluateJavascript(CLICK_FIRST_JS, null)
+                    }
+                    // Trang xem video mở từ Nhạc: YouTube tự tắt tiếng khi phát không có thao tác chạm -> bật tiếng lại
+                    if (unmuteNext && pagePath.startsWith("/watch")) {
+                        unmuteNext = false
+                        view?.evaluateJavascript(UNMUTE_JS, null)
                     }
                 }
             }
@@ -347,6 +353,18 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     fun search(q: String) { web.loadUrl("https://www.youtube.com/results?search_query=" + Uri.encode(q)) }
     // Nhạc (người lớn tuổi): tìm rồi tự mở video đầu tiên (bỏ quảng cáo, shorts), khỏi phải chọn
     @Volatile private var autoPlayFirst = false
+    @Volatile private var unmuteNext = false
+    private val UNMUTE_JS = """
+(function(){
+ var n=0;
+ function f(){
+  var v=document.querySelector('video');
+  var b=document.querySelector('.ytp-unmute');
+  try{ if(b&&b.offsetParent!==null) b.click(); }catch(e){}
+  try{ if(v&&v.muted){ v.muted=false; v.volume=1; } }catch(e){}
+  if(++n<24)setTimeout(f,500)}
+ f()})();
+""".trimIndent()
     private val CLICK_FIRST_JS = """
 (function(){
  var n=0;
@@ -360,7 +378,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
   if(++n<30)setTimeout(go,400)}
  go()})();
 """.trimIndent()
-    fun searchPlay(q: String) { autoPlayFirst = true; web.loadUrl("https://www.youtube.com/results?search_query=" + Uri.encode(q) + "&sp=EgIQAQ%253D%253D") }
+    fun searchPlay(q: String) { autoPlayFirst = true; unmuteNext = true; web.loadUrl("https://www.youtube.com/results?search_query=" + Uri.encode(q) + "&sp=EgIQAQ%253D%253D") }
     // Ve trang chu va xoa lich su duyet cu (nut ← khong quay lai video truoc do nua)
     private var clearHistoryOnFinish = false
     fun home() {
