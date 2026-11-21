@@ -47,7 +47,7 @@ var b=all.length>30?all.slice(0,5).concat(['...']).concat(all.slice(-25)):all;
 o.push('buttons='+b.join(' | '));
 var fi=null;for(var q=0;q<ins.length;q++){var tt=(ins[q].type||'text').toLowerCase();if((tt==='text'||tt==='url'||tt==='search')&&vis(ins[q])){fi=ins[q];break}}
 if(fi){var fc=fi.closest('form')||(fi.parentElement&&fi.parentElement.parentElement&&fi.parentElement.parentElement.parentElement)||fi.parentElement;o.push('form='+(fc?fc.outerHTML.replace(/\s+/g,' ').slice(0,900):''))}
-try{var sx=window.__dl;o.push('S='+JSON.stringify({phase:sx.phase,btn:sx.btn,n:sx.n,sel:sx.selDone,q:!!sx.qEl}))}catch(e){o.push('S=none')}
+try{var sx=window.__dl;o.push('S='+JSON.stringify({phase:sx.phase,btn:sx.btn,n:sx.n,sel:sx.selDone,q:!!sx.qEl,v1:sx.v1,v2:sx.v2,ins:sx.ins}))}catch(e){o.push('S=none')}
 var cbs=document.querySelectorAll('input[type=checkbox]');var cl=[];
 for(var cz=0;cz<cbs.length;cz++){if(vis(cbs[cz])){var cp=cbs[cz].closest('label')||cbs[cz].parentElement;cl.push('checked='+cbs[cz].checked+' '+(cp?cp.outerHTML.replace(/\s+/g,' ').slice(0,250):''))}}
 if(cl.length)o.push('checkbox='+cl.join(' || '));
@@ -70,16 +70,24 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
   if(!inp)return 'wait';
   S.snap=new Set(document.querySelectorAll('a,button'));
   var setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
-  inp.focus();setter.call(inp,u);
-  inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));
-  var btn=null,node=inp;
-  for(var k=0;k<6&&node&&!btn;k++){node=node.parentElement;if(!node)break;
-   var bs=node.querySelectorAll('button,input[type=submit],[type=submit]');
-   for(var j=0;j<bs.length;j++){if(vis(bs[j])&&!bs[j].disabled){btn=bs[j];break}}}
-  if(btn){S.btn=(btn.textContent||btn.value||'').trim().toLowerCase();btn.click()}
-  else{var fm=inp.closest('form');
-   if(fm&&fm.requestSubmit)fm.requestSubmit();
-   else{['keydown','keypress','keyup'].forEach(function(n){inp.dispatchEvent(new KeyboardEvent(n,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}))})}}
+  inp.focus();try{inp.select()}catch(e){}
+  var okIns=false;try{okIns=document.execCommand('insertText',false,u)}catch(e){}
+  if(inp.value!==u){setter.call(inp,u);inp.dispatchEvent(new Event('input',{bubbles:true}))}
+  inp.dispatchEvent(new Event('change',{bubbles:true}));
+  S.v1=(inp.value||'').slice(0,20);S.ins=okIns;
+  var fm=inp.closest('form');
+  var btn=null;
+  if(fm){btn=fm.querySelector('button[type=submit],input[type=submit],button:not([type])')}
+  else{var node=inp;
+   for(var k=0;k<3&&node&&!btn;k++){node=node.parentElement;if(!node)break;
+    var bs=node.querySelectorAll('button,input[type=submit]');
+    for(var j=0;j<bs.length;j++){if(vis(bs[j])&&!bs[j].disabled&&!bs[j].getAttribute('aria-label')){btn=bs[j];break}}}}
+  setTimeout(function(){
+   try{S.v2=(inp.value||'').slice(0,20);
+    if(btn){S.btn=(btn.textContent||btn.value||btn.getAttribute('aria-label')||'').trim().toLowerCase();btn.click()}
+    else if(fm&&fm.requestSubmit)fm.requestSubmit();
+    else{['keydown','keypress','keyup'].forEach(function(n){inp.dispatchEvent(new KeyboardEvent(n,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}))})}}catch(e){}
+  },300);
   S.phase=1;S.n=0;return 'filled';
  }
  if(S.phase===1){
