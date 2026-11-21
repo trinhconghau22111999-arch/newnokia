@@ -27,7 +27,7 @@ class Mp3Downloader(private val act: Activity) {
     companion object {
         const val SITE = "https://vi.savemp3.net/ruhuh/youtube-video-to-mp3/"
         private const val SITE_HOST = "savemp3.net"
-        private const val TIMEOUT_MS = 150_000L
+        private const val TIMEOUT_MS = 60_000L
         private const val MIN_BYTES = 30_000L
 
         // Mỗi nhịp: (1) chưa điền -> dán đường dẫn + bấm nút chuyển đổi; (2) đã bấm -> tìm nút/liên kết Tải xuống MỚI xuất hiện.
