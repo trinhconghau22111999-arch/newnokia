@@ -216,6 +216,7 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
                     if (unmuteNext && pagePath.startsWith("/watch")) {
                         unmuteNext = false
                         view?.evaluateJavascript(UNMUTE_JS, null)
+                        view?.evaluateJavascript(STOP_AT_END_JS, null)
                     }
                 }
             }
@@ -354,6 +355,27 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     // Nhạc (người lớn tuổi): tìm rồi tự mở video đầu tiên (bỏ quảng cáo, shorts), khỏi phải chọn
     @Volatile private var autoPlayFirst = false
     @Volatile private var unmuteNext = false
+    // Hết bài thì dừng: chặn YouTube tự sang video kế tiếp (tắt Tự động phát + chặn sự kiện "ended" tới trình phát)
+    private val STOP_AT_END_JS = """
+(function(){
+ if(!window.__wbStopEnd){
+  window.__wbStopEnd=true;
+  window.addEventListener('ended',function(e){
+   if(e.target&&e.target.tagName==='VIDEO'){
+    e.stopImmediatePropagation();
+    try{e.target.pause()}catch(x){}
+   }
+  },true);
+ }
+ var n=0;
+ function off(){
+  try{
+   var t=document.querySelector('.ytm-autonav-toggle-button-container button[aria-pressed="true"],ytm-autonav-toggle-button-renderer button[aria-pressed="true"]');
+   if(t)t.click();
+  }catch(e){}
+  if(++n<12)setTimeout(off,1000)}
+ off()})();
+""".trimIndent()
     private val UNMUTE_JS = """
 (function(){
  var n=0;
