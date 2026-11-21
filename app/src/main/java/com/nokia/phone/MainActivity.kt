@@ -757,7 +757,8 @@ fun Phone() {
     }
     LaunchedEffect(screen, libPlay, libHave, libLocal) {
         libReady = false
-        while (screen == "youtube" && libPlay && !libHave && !libLocal) { libReady = ytPane?.currentVideoUrl() != null; delay(500) }
+        // Kiểm tra mỗi nửa giây cho tới khi nút sáng (video đã vào trang xem) thì dừng
+        while (screen == "youtube" && libPlay && !libHave && !libLocal && !libReady) { libReady = ytPane?.currentVideoUrl() != null; if (!libReady) delay(500) }
     }
     LaunchedEffect(screen, uiResumed) { if (screen in INFO_SCREENS && uiResumed) while (true) { infoTick++; delay(1000) } }
     LaunchedEffect(gIdx, gIds, screen) {
