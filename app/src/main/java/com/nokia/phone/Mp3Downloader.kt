@@ -123,6 +123,8 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     private var lastActAt = 0L
     private var stalling = false
     private var phase2At = 0L
+    private var clicks = 0              // số lần bấm/nhận link tải; quá giới hạn -> báo lỗi, không lặp mãi
+    private var lastByteAt = 0L         // lần cuối có dữ liệu về (hoặc lúc bắt đầu tải tệp)
     private var videoUrl = ""
     private var dest: File? = null
     private var onStatus: (String) -> Unit = {}
@@ -154,7 +156,7 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     @SuppressLint("SetJavaScriptEnabled")
     fun start(videoUrl: String, dest: File, onStatus: (String) -> Unit, onResult: (Boolean, String) -> Unit, onProgress: (Int) -> Unit = {}) {
         if (running) return
-        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L
+        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L; clicks = 0; lastByteAt = 0L
         this.videoUrl = videoUrl; this.dest = dest; this.onStatus = onStatus; this.onResult = onResult; this.onProgress = onProgress
         pct = 0; onProgress(0)
         startedAt = System.currentTimeMillis(); lastActAt = startedAt
@@ -200,9 +202,15 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
         override fun run() {
             val w = web ?: return
             if (!running) return
-            if (fetching) { lastActAt = System.currentTimeMillis(); main.postDelayed(this, 1000); return }
+            if (fetching) {
+                // Đang tải tệp: chỉ coi là còn sống khi có dữ liệu về trong 40 giây, nếu không thì báo lỗi (trước đây treo mãi ở 39%)
+                if (System.currentTimeMillis() - lastByteAt > 40_000L) { fetchFailed("Tải lỗi: máy chủ không gửi dữ liệu, thử lại sau"); return }
+                main.postDelayed(this, 1000); return
+            }
             // Kẹt một bước quá lâu (không thấy ô dán link / không ra nút tải) -> báo lỗi kèm chi tiết, đừng treo mãi
             if (System.currentTimeMillis() - lastActAt > (if (fills == 0) 25_000L else 45_000L)) { stall(w); return }
+            // Giới hạn tổng: 3 phút mà chưa bắt đầu tải được tệp thì dừng, dù bước nào cũng "có hoạt động"
+            if (System.currentTimeMillis() - startedAt > 180_000L) { stall(w); return }
             val t = (System.currentTimeMillis() - startedAt) / 1000.0
             progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
             w.evaluateJavascript(STEP_JS.replace("%URL%", JSONObject.quote(videoUrl))) { raw ->
@@ -211,14 +219,21 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
                 when {
                     r == "filled" -> { fills++; lastActAt = System.currentTimeMillis(); onStatus("Đang chuyển đổi sang mp3...") ; phase2At = 0L
                         if (fills > 3) { finish(false, "Trang tải nhạc không phản hồi"); return@evaluateJavascript } }
-                    r.startsWith("link:") -> { phase2At = System.currentTimeMillis(); lastActAt = phase2At; onFile(r.substring(5), null) }
-                    r == "click" -> { phase2At = System.currentTimeMillis(); lastActAt = phase2At; onStatus("Đang tải về...") }
+                    r.startsWith("link:") -> {
+                        if (++clicks > 4) { stall(w); return@evaluateJavascript }
+                        phase2At = System.currentTimeMillis(); lastActAt = phase2At; onFile(r.substring(5), null)
+                    }
+                    r == "click" -> {
+                        // Bấm nút Tải xuống mãi mà không ra tệp (trang mở quảng cáo / không phản hồi): bấm tối đa 4 lần rồi báo lỗi
+                        if (++clicks > 4) { stall(w); return@evaluateJavascript }
+                        phase2At = System.currentTimeMillis(); lastActAt = phase2At; onStatus("Đang tải về...")
+                    }
                     r == "quality" -> { lastActAt = System.currentTimeMillis(); onStatus("Đang chọn chất lượng cao nhất...") }
                     r == "captcha" -> { sawCaptcha = true; finish(false, "Tải lỗi: trang yêu cầu xác minh"); return@evaluateJavascript }
                     r.startsWith("err:") -> { /* bỏ qua, thử lại nhịp sau */ }
                 }
                 // Đã bấm Tải xuống mà 25 giây không thấy tệp -> cho phép tìm nút khác
-                if (phase2At != 0L && !fetching && System.currentTimeMillis() - phase2At > 25_000L) {
+                if (phase2At != 0L && !fetching && System.currentTimeMillis() - phase2At > 20_000L) {
                     phase2At = 0L
                     w.evaluateJavascript("(function(){if(window.__dl&&window.__dl.phase===2)window.__dl.phase=1})()", null)
                 }
@@ -255,35 +270,39 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
             web?.evaluateJavascript(js, null)
             return
         }
-        if (fetches >= 3) return
+        if (fetches >= 3) { fetchFailed("Tải lỗi: thử 3 liên kết đều không được"); return }
         fetches++
         fetching = true
+        lastByteAt = System.currentTimeMillis()
         onStatus("Đang tải nhạc về máy...")
         val agent = ua ?: web?.settings?.userAgentString
         Thread {
             try {
                 val conn = URL(url).openConnection() as HttpURLConnection
                 conn.instanceFollowRedirects = true
-                conn.connectTimeout = 20_000; conn.readTimeout = 60_000
+                conn.connectTimeout = 15_000; conn.readTimeout = 30_000
                 if (agent != null) conn.setRequestProperty("User-Agent", agent)
                 conn.setRequestProperty("Referer", SITE)
                 CookieManager.getInstance().getCookie(url)?.let { conn.setRequestProperty("Cookie", it) }
                 if (conn.responseCode !in 200..299) { conn.disconnect(); fetchFailed("Máy chủ trả lỗi ${conn.responseCode}"); return@Thread }
                 val ct = (conn.contentType ?: "").lowercase()
                 if (ct.contains("text/html") || ct.contains("json")) { conn.disconnect(); fetchFailed("Liên kết không phải tệp nhạc"); return@Thread }
-                val d = dest ?: return@Thread
+                val d = dest ?: run { conn.disconnect(); fetchFailed("Tải lỗi: thiếu nơi lưu tệp"); return@Thread }
                 val tmp = File(d.parentFile, d.name + ".part")
                 val total = conn.contentLengthLong
+                lastByteAt = System.currentTimeMillis()
                 progress(40)
                 conn.inputStream.use { i -> tmp.outputStream().use { o ->
                     val buf = ByteArray(32 * 1024); var done = 0L; var n = 0
-                    while (i.read(buf).also { n = it } > 0) {
+                    while (running && i.read(buf).also { n = it } > 0) {
+                        lastByteAt = System.currentTimeMillis()
                         o.write(buf, 0, n); done += n
                         // biết dung lượng: 40..95% theo byte; không biết: tăng dần theo từng 100KB
                         progress(if (total > 0) 40 + (55 * done / total).toInt() else 40 + minOf(50L, done / 100_000L).toInt())
                     }
                 } }
                 conn.disconnect()
+                if (!running) { tmp.delete(); return@Thread }     // đã hủy / báo lỗi trong lúc tải
                 commit(tmp)
             } catch (e: Exception) { fetchFailed("Tải lỗi: " + (e.message ?: "không rõ")) }
         }.start()
