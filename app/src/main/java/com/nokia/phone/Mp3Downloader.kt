@@ -129,23 +129,30 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
    var qh=S.qEl.href||'';
    if(qh&&qh.indexOf('javascript:')!==0&&qh!==location.href&&qh.charAt(qh.length-1)!=='#'&&/^https?:/.test(qh)&&!/savemp3\.net\/[a-z]{2,}\//.test(qh)){S.phase=2;return 'link:'+qh}
    S.qEl.click();return 'quality'}
-  // Kết quả hiện ra: nút tải thật là nút có chữ đúng "MP3" (chữ "Tải xuống" phía trên chỉ là nhãn trang trí, không bấm được); bấm một lần
-  if(!S.mp3Clicked){var mb=document.querySelectorAll('button,[role=button]');
-   for(var m1=0;m1<mb.length;m1++){var me=mb[m1];
-    if(vis(me)&&!me.disabled&&!(S.snap&&S.snap.has(me))&&(me.textContent||'').trim().toLowerCase()==='mp3'){S.mp3Clicked=1;me.click();return 'mp3'}}}
-  // Sau đó: tìm phần tử bất kỳ có chữ "Tải xuống"/"Tải về" rồi bấm vào phần tử bấm được gần nhất (bỏ qua nhãn không bấm được)
-  var ms=[],all2=document.querySelectorAll('body *');
-  for(var g=0;g<all2.length;g++){var gt=(all2[g].textContent||'').trim().toLowerCase();
-   if(gt.length<=14&&/^(tải xuống|tải về|download)/.test(gt)&&vis(all2[g]))ms.push(all2[g])}
-  var tg=null;
-  for(var g2=0;g2<ms.length&&!tg;g2++){var cc=ms[g2].closest('a[href],button,[role=button],[onclick]');
-   if(cc&&vis(cc)&&!cc.disabled&&cc.getAttribute('aria-disabled')!=='true')tg=cc}
-  if(tg){
-    var gh=tg.href||'';
-    if(gh&&gh.indexOf('javascript:')!==0&&gh!==location.href&&gh.charAt(gh.length-1)!=='#'&&/^https?:/.test(gh)&&!/savemp3\.net\/[a-z]{2,}\//.test(gh)&&!/play\.google/.test(gh)){S.phase=2;return 'link:'+gh}
-    tg.click();S.phase=2;return 'click'}
+  // Thẻ kết quả = vùng chứa ảnh bìa video (ytimg) và nút "Cắt đoạn âm thanh". Chỉ làm việc trong thẻ này, để không bấm nhầm "Tải xuống" của phần quảng cáo ứng dụng.
+  // Nút chính trong thẻ: "MP3" -> bấm một lần -> hiện "NN%" (khóa) trong lúc chuyển đổi -> cuối cùng thành nút/link tải.
+  var cut=document.querySelector('button[aria-label="Cắt đoạn âm thanh"]'),card=null;
+  if(cut&&vis(cut)){var up=cut.parentElement;
+   for(var u1=0;u1<6&&up;u1++){if(up.querySelector('img[src*="ytimg"]')){card=up;break}up=up.parentElement}}
+  if(card){
+   var cb=card.querySelectorAll('button,a[href],[role=button]');
+   for(var i1=0;i1<cb.length;i1++){var pe=cb[i1];if(pe===cut||!vis(pe))continue;
+    var pt=(pe.textContent||'').trim();
+    if(/^\d{1,3}\s*%$/.test(pt))return 'prog:'+parseInt(pt,10)}
+   for(var i2=0;i2<cb.length;i2++){var ce=cb[i2];if(ce===cut||!vis(ce))continue;
+    var ct=(ce.textContent||'').trim().toLowerCase();
+    if(ce.disabled||ce.getAttribute('aria-disabled')==='true')continue;
+    if(!S.mp3Clicked&&ct==='mp3'){S.mp3Clicked=1;ce.click();return 'mp3'}
+    var h2=ce.href||'';
+    if(/^(tải xuống|tải về|download|lưu)/.test(ct)||ce.hasAttribute('download')||(h2&&ct==='mp3')){
+     if(h2&&h2.indexOf('javascript:')!==0&&h2!==location.href&&h2.charAt(h2.length-1)!=='#'&&/^https?:/.test(h2)&&!/savemp3\.net\/[a-z]{2,}\//.test(h2)){S.phase=2;return 'link:'+h2}
+     ce.click();S.phase=2;return 'click'}}
+   return 'wait'}
+  // Dự phòng cho bố cục lạ: chỉ dùng khi 30 nhịp liền vẫn chưa thấy thẻ kết quả
+  if(S.n<30)return 'wait';
   var els=document.querySelectorAll('a[href],button');
   for(var q=0;q<els.length;q++){var e=els[q];
+   if(e.closest('[role=dialog]'))continue;
    if(S.snap&&S.snap.has(e))continue;if(!vis(e))continue;
    var tx=(e.textContent||'').trim().toLowerCase();if(!tx&&!e.hasAttribute('download'))continue;
    var h=e.href||'';
@@ -177,6 +184,7 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     private val conLog = mutableListOf<String>()   // thông báo console của trang
     private fun logTo(l: MutableList<String>, s: String) { synchronized(l) { l.add(s); if (l.size > 14) l.removeAt(0) } }
     private var mp3At = 0L              // lúc bấm nút MP3 trên trang (0 = chưa bấm)
+    private var lastProg = -1           // phần trăm chuyển đổi cao nhất đã thấy trên trang
     private var clicks = 0              // số lần bấm/nhận link tải; quá giới hạn -> báo lỗi, không lặp mãi
     private var lastByteAt = 0L         // lần cuối có dữ liệu về (hoặc lúc bắt đầu tải tệp)
     private var videoUrl = ""
@@ -210,7 +218,7 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     @SuppressLint("SetJavaScriptEnabled")
     fun start(videoUrl: String, dest: File, onStatus: (String) -> Unit, onResult: (Boolean, String) -> Unit, onProgress: (Int) -> Unit = {}) {
         if (running) return
-        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L; clicks = 0; lastByteAt = 0L; mp3At = 0L
+        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L; clicks = 0; lastByteAt = 0L; mp3At = 0L; lastProg = -1
         this.videoUrl = videoUrl; this.dest = dest; this.onStatus = onStatus; this.onResult = onResult; this.onProgress = onProgress
         pct = 0; onProgress(0)
         startedAt = System.currentTimeMillis(); lastActAt = startedAt
@@ -280,8 +288,8 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
             }
             // Kẹt một bước quá lâu (không thấy ô dán link / không ra nút tải) -> báo lỗi kèm chi tiết, đừng treo mãi
             if (System.currentTimeMillis() - lastActAt > (if (fills == 0) 25_000L else if (mp3At != 0L) 150_000L else 45_000L)) { stall(w); return }
-            // Giới hạn tổng: 5 phút mà chưa bắt đầu tải được tệp thì dừng, dù bước nào cũng "có hoạt động"
-            if (System.currentTimeMillis() - startedAt > 300_000L) { stall(w); return }
+            // Giới hạn tổng: 5 phút (8 phút nếu trang đã bắt đầu chuyển đổi) mà chưa bắt đầu tải được tệp thì dừng
+            if (System.currentTimeMillis() - startedAt > (if (mp3At != 0L) 480_000L else 300_000L)) { stall(w); return }
             val t = (System.currentTimeMillis() - startedAt) / 1000.0
             progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
             w.evaluateJavascript(STEP_JS.replace("%URL%", JSONObject.quote(videoUrl))) { raw ->
@@ -298,6 +306,14 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
                         // Bấm nút Tải xuống mãi mà không ra tệp (trang mở quảng cáo / không phản hồi): bấm tối đa 2 lần rồi báo lỗi
                         if (++clicks > 2) { stall(w); return@evaluateJavascript }
                         phase2At = System.currentTimeMillis(); lastActAt = phase2At; onStatus("Đang tải về...")
+                    }
+                    r.startsWith("prog:") -> {
+                        // Trang đang chuyển đổi: chỉ coi là "còn sống" khi phần trăm tăng lên; đứng yên quá lâu thì vẫn bị báo kẹt
+                        val p = r.substring(5).toIntOrNull() ?: 0
+                        val now = System.currentTimeMillis()
+                        if (mp3At == 0L) { mp3At = now; onStatus("Đang chuyển đổi, video dài có thể mất vài phút...") }
+                        if (p > lastProg) { lastProg = p; lastActAt = now }
+                        progress(5 + p * 34 / 100)
                     }
                     r == "mp3" -> {
                         // Đã bấm nút MP3: video dài có thể phải chuyển đổi vài phút, nới thời gian chờ cho bước này
