@@ -599,7 +599,8 @@ fun Phone() {
     var libUrl by remember { mutableStateOf("") }        // (không dùng nữa: tải qua savemp3.net)
     var libLocal by remember { mutableStateOf(false) }   // đang nghe bản đã tải trong app (không dùng YouTube)
     var libHave by remember { mutableStateOf(false) }    // bài đang phát đã có bản tải trong app -> ẩn nút Tải xuống
-    var libBusy by remember { mutableStateOf(false) }    // đang tải bài này
+    var libBusy by remember { mutableStateOf(false) }    // bài đang hiển thị đang được tải
+    var dlTitle by remember { mutableStateOf("") }      // bài đang tải (rỗng = không tải gì); tải vẫn chạy tiếp khi thoát khỏi trang phát nhạc
     var libPaused by remember { mutableStateOf(false) }  // bản đã tải: đang tạm dừng
     var libPct by remember { mutableStateOf(0) }         // tiến độ tải (%)
     val mp3Dl = remember { (ctx as? Activity)?.let { Mp3Downloader(it) } }
@@ -715,7 +716,6 @@ fun Phone() {
             "youtube" -> {
                 ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 }
                 if (libLocal) { Music.stop(); libLocal = false; libPaused = false }
-                if (libBusy) { mp3Dl?.cancel(); libBusy = false }
             }
             "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "remote" -> { remotePane?.destroy(); remotePane = null; if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
@@ -1401,18 +1401,19 @@ fun Phone() {
     fun libDownload() {
         if (libBusy || libHave || libLocal) return
         val dl = mp3Dl ?: return
+        if (dl.busy) { Toast.makeText(ctx, "Đang tải bài khác, đợi tải xong", Toast.LENGTH_LONG).show(); return }
         val u = ytPane?.currentVideoUrl()
         if (u == null) {
             Toast.makeText(ctx, "Đợi video bắt đầu phát rồi bấm Tải", Toast.LENGTH_LONG).show()
             return
         }
         val title = libTitle
-        libBusy = true; libPct = 0
+        libBusy = true; dlTitle = title; libPct = 0
         dl.start(u, Library.file(ctx, title),
             onStatus = { Toast.makeText(ctx, it, Toast.LENGTH_SHORT).show() },
             onResult = { ok, msg ->
-                libBusy = false
-                if (ok && libTitle == title) libHave = true
+                dlTitle = ""
+                if (libTitle == title) { libBusy = false; if (ok) libHave = true }
                 Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
             },
             onProgress = { libPct = it })
@@ -1428,7 +1429,7 @@ fun Phone() {
     /** Nhạc: bài đã tải thì nghe bản trong máy; chưa tải thì mở YouTube ngay trong ô LCD, tự tìm và phát kết quả đầu tiên. */
     fun playLib(q: String, fromList: Boolean, title: String = q, url: String = "") {
         libFrom = fromList; libSel = sel; libPlay = true; libTitle = title; libUrl = url
-        libHave = Library.has(ctx, title); libBusy = false; libPaused = false
+        libHave = Library.has(ctx, title); libBusy = dlTitle.isNotEmpty() && dlTitle == title; libPaused = false
         if (libHave) {
             libLocal = true; webQuery = ""; webPlay = false
             open("youtube")
