@@ -596,7 +596,6 @@ fun Phone() {
     var webPlay by remember { mutableStateOf(false) }    // tìm xong tự phát kết quả đầu tiên
     var libPlay by remember { mutableStateOf(false) }    // đang ở màn hình phát nhạc riêng (ẩn giao diện YouTube)
     var libTitle by remember { mutableStateOf("") }      // tên bài đang phát
-    var libUrl by remember { mutableStateOf("") }        // (không dùng nữa: tải qua savemp3.net)
     var libLocal by remember { mutableStateOf(false) }   // đang nghe bản đã tải trong app (không dùng YouTube)
     var libHave by remember { mutableStateOf(false) }    // bài đang phát đã có bản tải trong app -> ẩn nút Tải xuống
     var libBusy by remember { mutableStateOf(false) }    // bài đang hiển thị đang được tải
@@ -1427,8 +1426,8 @@ fun Phone() {
         } else { Music.toggle(); libPaused = Music.paused }
     }
     /** Nhạc: bài đã tải thì nghe bản trong máy; chưa tải thì mở YouTube ngay trong ô LCD, tự tìm và phát kết quả đầu tiên. */
-    fun playLib(q: String, fromList: Boolean, title: String = q, url: String = "") {
-        libFrom = fromList; libSel = sel; libPlay = true; libTitle = title; libUrl = url
+    fun playLib(q: String, fromList: Boolean, title: String = q) {
+        libFrom = fromList; libSel = sel; libPlay = true; libTitle = title
         libHave = Library.has(ctx, title); libBusy = dlTitle.isNotEmpty() && dlTitle == title; libPaused = false
         if (libHave) {
             libLocal = true; webQuery = ""; webPlay = false
@@ -1449,7 +1448,7 @@ fun Phone() {
     }
     fun libOk() {
         if (libCat < 0) { libCat = sel.coerceIn(0, Library.CATS.lastIndex); sel = 0 }
-        else Library.CATS.getOrNull(libCat)?.let { Library.visible(ctx, it) }?.getOrNull(sel)?.let { playLib(it.query, true, it.title, it.url) }
+        else Library.CATS.getOrNull(libCat)?.let { Library.visible(ctx, it) }?.getOrNull(sel)?.let { playLib(it.query, true, it.title) }
     }
 
     fun back() {
@@ -1592,7 +1591,7 @@ fun Phone() {
                 else {
                     val hit = AiMatch.rank(Library.ALL.map { plain(it.title) }, q).firstOrNull()
                     val found = hit?.let { h -> Library.ALL[h] }
-                    playLib(found?.query ?: q, false, found?.title ?: q, found?.url ?: "")
+                    playLib(found?.query ?: q, false, found?.title ?: q)
                 }
             }
             is AiCmd.Open -> aiOpen(c.id)

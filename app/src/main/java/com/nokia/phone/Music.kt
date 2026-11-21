@@ -76,8 +76,8 @@ object Music {
         }
     }
 
-    /** Phát bài t. onEnd: hát hết bài; onError: phát lỗi giữa chừng. Trả về false nếu không mở được file. */
-    fun play(ctx: Context, t: Track, onEnd: () -> Unit, onError: () -> Unit): Boolean {
+    /** Mở nguồn và phát. onEnd: hát hết bài; onError: lỗi giữa chừng. Trả về false nếu không mở được. title != null: chạy dịch vụ nền để tắt màn hình vẫn nghe. */
+    private fun start(ctx: Context, title: String?, onEnd: () -> Unit, onError: () -> Unit, source: (MediaPlayer, Context) -> Unit): Boolean {
         stop()
         val app = ctx.applicationContext
         val a = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -89,7 +89,8 @@ object Music {
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
             )
-            m.setDataSource(app, MusicLib.uri(t.id))
+            if (title != null) m.setWakeMode(app, android.os.PowerManager.PARTIAL_WAKE_LOCK)
+            source(m, app)
             m.prepare()
             m.setOnCompletionListener { stop(); onEnd() }
             m.setOnErrorListener { _, _, _ -> stop(); onError(); true }
@@ -97,6 +98,7 @@ object Music {
             m.start()
             mp = m
             paused = false
+            if (title != null) try { MusicService.start(app, title); svcCtx = app } catch (_: Exception) {}
             true
         } catch (_: Exception) {
             try { m.release() } catch (_: Exception) {}
@@ -106,35 +108,13 @@ object Music {
 
     private var svcCtx: Context? = null
 
-    /** Phát tệp mp3 đã tải trong app. Có dịch vụ nền + giữ CPU nên tắt màn hình vẫn nghe được. */
-    fun playFile(ctx: Context, f: java.io.File, title: String, onEnd: () -> Unit, onError: () -> Unit): Boolean {
-        stop()
-        val app = ctx.applicationContext
-        val a = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        am = a
-        val m = MediaPlayer()
-        return try {
-            m.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
-            )
-            m.setWakeMode(app, android.os.PowerManager.PARTIAL_WAKE_LOCK)
-            m.setDataSource(f.absolutePath)
-            m.prepare()
-            m.setOnCompletionListener { stop(); onEnd() }
-            m.setOnErrorListener { _, _, _ -> stop(); onError(); true }
-            a.requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
-            m.start()
-            mp = m
-            paused = false
-            try { MusicService.start(app, title); svcCtx = app } catch (_: Exception) {}
-            true
-        } catch (_: Exception) {
-            try { m.release() } catch (_: Exception) {}
-            false
-        }
-    }
+    /** Phát bài trong thư viện máy / thẻ nhớ. */
+    fun play(ctx: Context, t: Track, onEnd: () -> Unit, onError: () -> Unit): Boolean =
+        start(ctx, null, onEnd, onError) { m, app -> m.setDataSource(app, MusicLib.uri(t.id)) }
+
+    /** Phát tệp mp3 đã tải trong app (có dịch vụ nền + giữ CPU). */
+    fun playFile(ctx: Context, f: java.io.File, title: String, onEnd: () -> Unit, onError: () -> Unit): Boolean =
+        start(ctx, title, onEnd, onError) { m, _ -> m.setDataSource(f.absolutePath) }
 
     fun stop() {
         val m = mp
@@ -150,13 +130,13 @@ object Music {
         svcCtx = null
     }
 
-    fun isPlaying(): Boolean = try { mp?.isPlaying == true } catch (_: Exception) { false }
+    private fun isPlaying(): Boolean = try { mp?.isPlaying == true } catch (_: Exception) { false }
 
-    fun pause() {
+    private fun pause() {
         try { if (mp?.isPlaying == true) { mp?.pause(); paused = true } } catch (_: Exception) {}
     }
 
-    fun resume() {
+    private fun resume() {
         try { if (mp != null && paused) { mp?.start(); paused = false } } catch (_: Exception) {}
     }
 
@@ -171,22 +151,4 @@ object Music {
         } catch (_: Exception) {}
     }
 
-    fun pos(): Long = try { (mp?.currentPosition ?: 0).toLong() } catch (_: Exception) { 0L }
-    fun dur(): Long = try { (mp?.duration ?: 0).toLong() } catch (_: Exception) { 0L }
 }
-
-/** Danh sách hiển thị: ▶ bài đang phát, ‖ bài đang tạm dừng. */
-fun musicLines(tracks: List<Track>, cur: Int, paused: Boolean): List<String> =
-    tracks.mapIndexed { i, t -> (if (i == cur) (if (paused) "‖ " else "▶ ") else "  ") + t.title }
-
-/** ▶ 0:05 ███░░░░░░░ 3:21 */
-fun musicProgress(): String {
-    val pos = Music.pos()
-    val d = Music.dur()
-    val b = if (d > 0) (pos * 10f / d).toInt().coerceIn(0, 10) else 0
-    return (if (Music.paused) "‖ " else "▶ ") + mmss(pos) + " " + "█".repeat(b) + "░".repeat(10 - b) + " " + mmss(d)
-}
-
-/** Ca sĩ · thời lượng · nơi lưu (Máy / Thẻ nhớ). */
-fun trackInfo(t: Track): String =
-    (if (t.artist.isNotEmpty()) t.artist + " · " else "") + mmss(t.dur) + " · " + (if (t.sd) "Thẻ nhớ" else "Máy")

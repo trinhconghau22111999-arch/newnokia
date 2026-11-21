@@ -1,7 +1,7 @@
 package com.nokia.phone
 
 /** Một bài / vở / chương trình trong mục Nhạc. query = từ khóa tìm trên YouTube. */
-data class LibItem(val title: String, val query: String, val url: String = "")   // url: tệp mp3 trực tiếp (nếu có) để tải về app
+data class LibItem(val title: String, val query: String)
 data class LibCat(val name: String, val items: List<LibItem>)
 
 /** Kho nghe sẵn cho người lớn tuổi: Cải lương, Tuồng (hát bội), Nhạc xưa; mỗi mục 50. Chọn một dòng -> YouTube tự tìm và phát kết quả đầu tiên. */
