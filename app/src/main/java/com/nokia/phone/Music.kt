@@ -104,6 +104,38 @@ object Music {
         }
     }
 
+    private var svcCtx: Context? = null
+
+    /** Phát tệp mp3 đã tải trong app. Có dịch vụ nền + giữ CPU nên tắt màn hình vẫn nghe được. */
+    fun playFile(ctx: Context, f: java.io.File, title: String, onEnd: () -> Unit, onError: () -> Unit): Boolean {
+        stop()
+        val app = ctx.applicationContext
+        val a = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am = a
+        val m = MediaPlayer()
+        return try {
+            m.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
+            )
+            m.setWakeMode(app, android.os.PowerManager.PARTIAL_WAKE_LOCK)
+            m.setDataSource(f.absolutePath)
+            m.prepare()
+            m.setOnCompletionListener { stop(); onEnd() }
+            m.setOnErrorListener { _, _, _ -> stop(); onError(); true }
+            a.requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            m.start()
+            mp = m
+            paused = false
+            try { MusicService.start(app, title); svcCtx = app } catch (_: Exception) {}
+            true
+        } catch (_: Exception) {
+            try { m.release() } catch (_: Exception) {}
+            false
+        }
+    }
+
     fun stop() {
         val m = mp
         mp = null
@@ -114,6 +146,8 @@ object Music {
             try { m.release() } catch (_: Exception) {}
             try { am?.abandonAudioFocus(focus) } catch (_: Exception) {}
         }
+        svcCtx?.let { try { MusicService.stop(it) } catch (_: Exception) {} }
+        svcCtx = null
     }
 
     fun isPlaying(): Boolean = try { mp?.isPlaying == true } catch (_: Exception) { false }

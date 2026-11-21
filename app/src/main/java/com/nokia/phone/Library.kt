@@ -175,13 +175,13 @@ object Library {
     )
     val ALL: List<LibItem> = CATS.flatMap { it.items }
 
-    /** Tải tệp âm thanh (đường dẫn trực tiếp) vào bộ nhớ riêng của app: mất khi xóa dữ liệu / khôi phục cài đặt gốc. */
-    fun download(ctx: android.content.Context, title: String, url: String): Boolean = try {
+    /** Tệp mp3 đã tải của bài này, nằm trong bộ nhớ riêng của app (mất khi xóa dữ liệu / khôi phục app). */
+    fun file(ctx: android.content.Context, title: String): java.io.File {
         val dir = java.io.File(ctx.filesDir, "nghe").apply { mkdirs() }
         val name = title.replace(Regex("[^\\p{L}\\p{N} ]"), "").trim().ifEmpty { "bai" } + ".mp3"
-        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-        conn.connectTimeout = 15000; conn.readTimeout = 30000
-        conn.inputStream.use { i -> java.io.File(dir, name).outputStream().use { o -> i.copyTo(o) } }
-        true
-    } catch (e: Exception) { false }
+        return java.io.File(dir, name)
+    }
+
+    /** Bài này đã tải về app chưa. */
+    fun has(ctx: android.content.Context, title: String): Boolean = file(ctx, title).let { it.isFile && it.length() > 30_000L }
 }

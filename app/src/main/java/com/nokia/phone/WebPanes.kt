@@ -126,6 +126,13 @@ class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     val web: WebView = NoKeyboardWebView(act)
     val view: View get() = web
 
+    /** Đường dẫn video đang xem (dạng youtube.com/watch?v=ID); null nếu chưa ở trang xem video. */
+    fun currentVideoUrl(): String? {
+        val u = try { Uri.parse(web.url ?: return null) } catch (e: Exception) { return null }
+        val id = if ((u.path ?: "").startsWith("/watch")) u.getQueryParameter("v") else null
+        return if (id.isNullOrEmpty()) null else "https://www.youtube.com/watch?v=$id"
+    }
+
     /** Tua video đang phát tới/lui sec giây (âm = lui), không vượt quá đầu/cuối bài. */
     fun seekBy(sec: Int) {
         if (destroyedYt) return

@@ -191,6 +191,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Nhạc đã tải: giữ app chạy nền để tắt màn hình vẫn nghe được -->
+        <service
+            android:name=".MusicService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <!-- Báo thức: dịch vụ phát chuông + màn hình báo thức hiện trên khóa màn hình -->
         <service
             android:name=".AlarmService"

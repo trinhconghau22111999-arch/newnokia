@@ -596,7 +596,12 @@ fun Phone() {
     var webPlay by remember { mutableStateOf(false) }    // tìm xong tự phát kết quả đầu tiên
     var libPlay by remember { mutableStateOf(false) }    // đang ở màn hình phát nhạc riêng (ẩn giao diện YouTube)
     var libTitle by remember { mutableStateOf("") }      // tên bài đang phát
-    var libUrl by remember { mutableStateOf("") }        // đường dẫn tệp mp3 trực tiếp (nếu có) để tải về app
+    var libUrl by remember { mutableStateOf("") }        // (không dùng nữa: tải qua savemp3.net)
+    var libLocal by remember { mutableStateOf(false) }   // đang nghe bản đã tải trong app (không dùng YouTube)
+    var libHave by remember { mutableStateOf(false) }    // bài đang phát đã có bản tải trong app -> ẩn nút Tải xuống
+    var libBusy by remember { mutableStateOf(false) }    // đang tải bài này
+    var libPaused by remember { mutableStateOf(false) }  // bản đã tải: đang tạm dừng
+    val mp3Dl = remember { (ctx as? Activity)?.let { Mp3Downloader(it) } }
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
     var remotePane by remember { mutableStateOf<RemotePane?>(null) }   // app con Điều khiển TV (remote app TV qua WebRTC)
     var remoteMicTick by remember { mutableIntStateOf(0) }            // nút giọng nói trên remote bấm -> tăng để mở micro
@@ -706,7 +711,11 @@ fun Phone() {
         if (grp(p) == grp(screen)) return@LaunchedEffect
         when (grp(p)) {
             "apps" -> { apps = emptyList(); AppIcons.clear() }
-            "youtube" -> { ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
+            "youtube" -> {
+                ytPane?.destroy(); ytPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 }
+                if (libLocal) { Music.stop(); libLocal = false; libPaused = false }
+                if (libBusy) { mp3Dl?.cancel(); libBusy = false }
+            }
             "tv" -> { tvPane?.destroy(); tvPane = null; webHost.hideFull(); if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "remote" -> { remotePane?.destroy(); remotePane = null; if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } }
             "contacts" -> { contacts = emptyList(); cPick = -1; ctLoaded = false; entry.reset() }
@@ -727,7 +736,7 @@ fun Phone() {
             "topup" -> { topupCam.capture = null; topupCam.control = null; topupCam.hasFlash = false; topupCam.torch = false; topupCamOk = false; topupBusy = false }
             "rec" -> { recs = emptyList(); playing = null }
             "calllog" -> { calls = emptyList(); clLoaded = false }
-            "music" -> { Music.stop(); mCur = -1; tracks = emptyList(); mLoaded = false }
+            "music" -> { if (!libLocal) Music.stop(); mCur = -1; tracks = emptyList(); mLoaded = false }
             "calc" -> calc.clear()
             "snake" -> snake.reset()
             "calendar" -> monthOffset = 0
@@ -755,7 +764,7 @@ fun Phone() {
     LaunchedEffect(playing, recording, screen, uiResumed) {
         if ((screen == "recorder" || screen == "recording") && uiResumed) while (playing != null || recording) { recTick++; delay(250) }
     }
-    DisposableEffect(Unit) { onDispose { Music.stop() } }
+    DisposableEffect(Unit) { onDispose { Music.stop(); mp3Dl?.cancel() } }
     DisposableEffect(screen) {
         val s = screen
         onDispose {
@@ -1337,9 +1346,9 @@ fun Phone() {
         }
         when (s) {
             "youtube" -> {
-                ytPane?.destroy()
+                ytPane?.destroy(); ytPane = null
                 val a = ctx as? Activity
-                if (a != null) { val p = YouTubePane(a, webHost); ytPane = p; if (webQuery.isNotEmpty()) { if (webPlay) p.searchPlay(webQuery) else p.search(webQuery); webQuery = ""; webPlay = false } }
+                if (a != null && !libLocal) { val p = YouTubePane(a, webHost); ytPane = p; if (webQuery.isNotEmpty()) { if (webPlay) p.searchPlay(webQuery) else p.search(webQuery); webQuery = ""; webPlay = false } }
             }
             "tv" -> {
                 tvPane?.destroy()
@@ -1387,23 +1396,53 @@ fun Phone() {
     }
     /** Phím mũi tên ở màn hình chờ: mở thẳng app; bấm Về thì quay lại màn hình chờ (không qua Menu). */
     fun shortcut(s: String) { open(s); fromHome = true }
-    /** Nút Tải xuống: chỉ tải được khi bài có đường dẫn tệp mp3 trực tiếp; bài phát qua YouTube thì chưa tải được. */
+    /** Nút Tải xuống: lấy đường dẫn video YouTube đang phát, dán vào savemp3.net (WebView ẩn), tải mp3 về bộ nhớ riêng của app. */
     fun libDownload() {
-        if (libUrl.isEmpty()) {
-            Toast.makeText(ctx, "Bài này nghe qua YouTube nên chưa tải được", Toast.LENGTH_LONG).show()
+        if (libBusy || libHave || libLocal) return
+        val dl = mp3Dl ?: return
+        val u = ytPane?.currentVideoUrl()
+        if (u == null) {
+            Toast.makeText(ctx, "Đợi video bắt đầu phát rồi bấm Tải", Toast.LENGTH_LONG).show()
             return
         }
-        Toast.makeText(ctx, "Đang tải...", Toast.LENGTH_SHORT).show()
-        scope.launch {
-            val ok = withContext(Dispatchers.IO) { Library.download(ctx, libTitle, libUrl) }
-            Toast.makeText(ctx, if (ok) "Đã tải xong" else "Tải lỗi, thử lại sau", Toast.LENGTH_LONG).show()
-        }
+        val title = libTitle
+        libBusy = true
+        dl.start(u, Library.file(ctx, title),
+            onStatus = { Toast.makeText(ctx, it, Toast.LENGTH_SHORT).show() },
+            onResult = { ok, msg ->
+                libBusy = false
+                if (ok && libTitle == title) libHave = true
+                Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+            })
     }
-    /** Nhạc: mở YouTube ngay trong ô LCD, tự tìm và phát kết quả đầu tiên. */
+    /** Bản đã tải: bật / tạm dừng. */
+    fun libToggle() {
+        if (!libLocal) return
+        if (!Music.active) {   // đã hát hết bài: bấm lại thì phát lại từ đầu
+            val ok = Music.playFile(ctx, Library.file(ctx, libTitle), libTitle, onEnd = { libPaused = true }, onError = {})
+            libPaused = !ok
+        } else { Music.toggle(); libPaused = Music.paused }
+    }
+    /** Nhạc: bài đã tải thì nghe bản trong máy; chưa tải thì mở YouTube ngay trong ô LCD, tự tìm và phát kết quả đầu tiên. */
     fun playLib(q: String, fromList: Boolean, title: String = q, url: String = "") {
         libFrom = fromList; libSel = sel; libPlay = true; libTitle = title; libUrl = url
-        webQuery = q; webPlay = true
-        open("youtube")
+        libHave = Library.has(ctx, title); libBusy = false; libPaused = false
+        if (libHave) {
+            libLocal = true; webQuery = ""; webPlay = false
+            open("youtube")
+            val ok = Music.playFile(ctx, Library.file(ctx, title), title,
+                onEnd = { libPaused = true },
+                onError = { Toast.makeText(ctx, "Không phát được bản đã tải", Toast.LENGTH_SHORT).show() })
+            if (!ok) {
+                Toast.makeText(ctx, "Không phát được bản đã tải, chuyển sang YouTube", Toast.LENGTH_SHORT).show()
+                Library.file(ctx, title).delete(); libHave = false; libLocal = false
+                webQuery = q; webPlay = true; open("youtube")
+            }
+        } else {
+            libLocal = false
+            webQuery = q; webPlay = true
+            open("youtube")
+        }
     }
     fun libOk() {
         if (libCat < 0) { libCat = sel.coerceIn(0, Library.CATS.lastIndex); sel = 0 }
@@ -1776,12 +1815,13 @@ fun Phone() {
         }
         if (screen == "youtube" && libPlay) {   // màn hình phát nhạc: không có dừng / tua / chọn bài khác, chỉ Tải xuống và Về
             when (k) {
-                "OK", "SOFTL" -> libDownload()
+                "OK", "SOFTL" -> if (libLocal) libToggle() else libDownload()
                 "SOFTR" -> back()
                 "END" -> open("home")
-                // ◀ lùi 30 giây, ▶ tới 30 giây (video YouTube đang phát ẩn phía sau)
+                // ◀ lùi 30 giây, ▶ tới 30 giây (bản đã tải hoặc video YouTube đang phát ẩn phía sau)
                 "LEFT", "RIGHT" -> {
-                    ytPane?.seekBy(if (k == "RIGHT") 30 else -30)
+                    val sec = if (k == "RIGHT") 30 else -30
+                    if (libLocal) Music.seek(sec * 1000L) else ytPane?.seekBy(sec)
                 }
             }
             return
@@ -2039,7 +2079,7 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"; "topup" -> "Chụp"
-        "youtube", "tv" -> if (ytVoice == 1) "Xong" else if (screen == "youtube" && libPlay) "Tải" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
+        "youtube", "tv" -> if (ytVoice == 1) "Xong" else if (screen == "youtube" && libPlay) (if (libLocal) (if (libPaused) "Phát" else "Dừng") else if (libHave) "" else if (libBusy) "..." else "Tải") else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
         "remote" -> if (ytVoice == 1) "Xong" else ""   // ẩn nút AI: đã có nút GIỌNG NÓI trong màn hình; khi đang nghe vẫn hiện "Xong"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (libCat < 0) "Mở" else "Phát"
@@ -2152,9 +2192,10 @@ fun Phone() {
                                                     lineHeight = 26.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                                             }
                                         }
-                                        Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(52.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
+                                        // Đã có bản tải trong app (hoặc đang nghe bản đó): ẩn nút Tải xuống
+                                        if (!libHave && !libLocal) Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(52.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
                                             contentAlignment = Alignment.Center) {
-                                            Text("TẢI XUỐNG", color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                            Text(if (libBusy) "ĐANG TẢI..." else "TẢI XUỐNG", color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                         }
                                     }
                                 } else {
