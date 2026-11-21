@@ -2,6 +2,9 @@ package com.nokia.phone
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
@@ -28,6 +31,20 @@ class Mp3Downloader(private val act: Activity) {
         const val SITE = "https://vi.savemp3.net/ruhuh/youtube-video-to-mp3/"
         private const val SITE_HOST = "savemp3.net"
         private const val MIN_BYTES = 30_000L
+
+        // Chụp tình trạng trang khi bị kẹt (chép vào bộ nhớ tạm để gửi lại cho người sửa app)
+        private val DUMP_JS = """
+(function(){try{function vis(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0}
+var o=[];o.push('url='+location.href);o.push('size='+innerWidth+'x'+innerHeight);
+var ins=document.querySelectorAll('input');var a=[];
+for(var i=0;i<ins.length;i++)a.push((ins[i].type||'')+(vis(ins[i])?'+':'-')+':'+(ins[i].value||'').slice(0,60));
+o.push('inputs='+a.join(' | '));
+var bs=document.querySelectorAll('a[href],button');var b=[];
+for(var j=0;j<bs.length&&b.length<25;j++){if(vis(bs[j]))b.push((bs[j].textContent||'').trim().slice(0,30)+(bs[j].href?' > '+bs[j].href.slice(0,70):''))}
+o.push('buttons='+b.join(' | '));
+o.push('text='+(document.body.innerText||'').replace(/\s+/g,' ').slice(0,400));
+return o.join('\n')}catch(e){return 'dump err '+e}})()
+"""
 
         // Mỗi nhịp: (1) chưa điền -> dán đường dẫn + bấm nút chuyển đổi; (2) đã bấm -> tìm nút/liên kết Tải xuống MỚI xuất hiện.
         private val STEP_JS = """
@@ -103,6 +120,8 @@ class Mp3Downloader(private val act: Activity) {
     private var fetches = 0
     private var fetching = false
     private var sawCaptcha = false
+    private var lastActAt = 0L
+    private var stalling = false
     private var phase2At = 0L
     private var videoUrl = ""
     private var dest: File? = null
@@ -135,10 +154,10 @@ class Mp3Downloader(private val act: Activity) {
     @SuppressLint("SetJavaScriptEnabled")
     fun start(videoUrl: String, dest: File, onStatus: (String) -> Unit, onResult: (Boolean, String) -> Unit, onProgress: (Int) -> Unit = {}) {
         if (running) return
-        running = true; fetching = false; sawCaptcha = false; fills = 0; fetches = 0; phase2At = 0L
+        running = true; fetching = false; sawCaptcha = false; stalling = false; fills = 0; fetches = 0; phase2At = 0L
         this.videoUrl = videoUrl; this.dest = dest; this.onStatus = onStatus; this.onResult = onResult; this.onProgress = onProgress
         pct = 0; onProgress(0)
-        startedAt = System.currentTimeMillis()
+        startedAt = System.currentTimeMillis(); lastActAt = startedAt
         onStatus("Đang mở trang tải nhạc...")
         val w = WebView(act)
         web = w
@@ -168,8 +187,9 @@ class Mp3Downloader(private val act: Activity) {
         }
         // Gắn vào cửa sổ (rất nhỏ, trong suốt) để WebView chạy script bình thường
         try {
-            val lp = FrameLayout.LayoutParams(2, 2)
-            (act.window.decorView as ViewGroup).addView(w, lp)
+            val deco = act.window.decorView as ViewGroup
+            val lp = FrameLayout.LayoutParams(deco.width.coerceAtLeast(360), deco.height.coerceAtLeast(640))
+            deco.addView(w, 0, lp)      // nằm dưới giao diện app, kích thước thật để trang hiện đúng bố cục di động
             w.alpha = 0.01f
         } catch (_: Exception) {}
         w.loadUrl(SITE)
@@ -180,18 +200,20 @@ class Mp3Downloader(private val act: Activity) {
         override fun run() {
             val w = web ?: return
             if (!running) return
-            if (fetching) { main.postDelayed(this, 1000); return }
+            if (fetching) { lastActAt = System.currentTimeMillis(); main.postDelayed(this, 1000); return }
+            // Kẹt một bước quá lâu (không thấy ô dán link / không ra nút tải) -> báo lỗi kèm chi tiết, đừng treo mãi
+            if (System.currentTimeMillis() - lastActAt > (if (fills == 0) 25_000L else 45_000L)) { stall(w); return }
             val t = (System.currentTimeMillis() - startedAt) / 1000.0
             progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
             w.evaluateJavascript(STEP_JS.replace("%URL%", JSONObject.quote(videoUrl))) { raw ->
                 if (!running) return@evaluateJavascript
                 val r = try { JSONObject("{\"v\":$raw}").optString("v") } catch (_: Exception) { "" }
                 when {
-                    r == "filled" -> { fills++; onStatus("Đang chuyển đổi sang mp3...") ; phase2At = 0L
+                    r == "filled" -> { fills++; lastActAt = System.currentTimeMillis(); onStatus("Đang chuyển đổi sang mp3...") ; phase2At = 0L
                         if (fills > 3) { finish(false, "Trang tải nhạc không phản hồi"); return@evaluateJavascript } }
-                    r.startsWith("link:") -> { phase2At = System.currentTimeMillis(); onFile(r.substring(5), null) }
-                    r == "click" -> { phase2At = System.currentTimeMillis(); onStatus("Đang tải về...") }
-                    r == "quality" -> onStatus("Đang chọn chất lượng cao nhất...")
+                    r.startsWith("link:") -> { phase2At = System.currentTimeMillis(); lastActAt = phase2At; onFile(r.substring(5), null) }
+                    r == "click" -> { phase2At = System.currentTimeMillis(); lastActAt = phase2At; onStatus("Đang tải về...") }
+                    r == "quality" -> { lastActAt = System.currentTimeMillis(); onStatus("Đang chọn chất lượng cao nhất...") }
                     r == "captcha" -> { sawCaptcha = true; finish(false, "Tải lỗi: trang yêu cầu xác minh"); return@evaluateJavascript }
                     r.startsWith("err:") -> { /* bỏ qua, thử lại nhịp sau */ }
                 }
@@ -203,6 +225,22 @@ class Mp3Downloader(private val act: Activity) {
             }
             main.postDelayed(this, 1000)
         }
+    }
+
+    private fun stall(w: WebView) {
+        if (stalling) return
+        stalling = true
+        val step = if (fills == 0) "dán link vào trang" else "chờ nút tải về"
+        val done = Runnable { finish(false, "Tải lỗi: kẹt ở bước $step (đã chép chi tiết vào bộ nhớ tạm, dán gửi lại để sửa)") }
+        w.evaluateJavascript(DUMP_JS) { raw ->
+            val d = try { JSONObject("{\"v\":$raw}").optString("v") } catch (_: Exception) { "" }
+            try {
+                val cm = act.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("savemp3", "bước=$step\n$d"))
+            } catch (_: Exception) {}
+            main.removeCallbacks(done); done.run()
+        }
+        main.postDelayed(done, 3000)   // phòng khi không chụp được trang
     }
 
     /** Có đường dẫn tệp (từ nút tải / chuyển hướng / DownloadListener): tải bằng app. */
