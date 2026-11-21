@@ -192,7 +192,9 @@ object Library {
         caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
     } catch (_: Throwable) { true }
 
-    /** Danh sách bài hiển thị: có mạng thì đủ 50 bài, mất mạng thì chỉ các bài đã tải mp3 về máy. */
-    fun visible(ctx: android.content.Context, cat: LibCat): List<LibItem> =
-        if (online(ctx)) cat.items else cat.items.filter { has(ctx, it.title) }
+    /** Danh sách bài hiển thị: có mạng thì đủ 50 bài, bài đã tải mp3 nằm trên cùng (giữ nguyên thứ tự cũ trong từng nhóm); mất mạng thì chỉ các bài đã tải. */
+    fun visible(ctx: android.content.Context, cat: LibCat): List<LibItem> {
+        val (got, rest) = cat.items.partition { has(ctx, it.title) }
+        return if (online(ctx)) got + rest else got
+    }
 }
