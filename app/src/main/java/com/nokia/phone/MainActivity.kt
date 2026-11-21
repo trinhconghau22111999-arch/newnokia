@@ -601,6 +601,7 @@ fun Phone() {
     var libHave by remember { mutableStateOf(false) }    // bài đang phát đã có bản tải trong app -> ẩn nút Tải xuống
     var libBusy by remember { mutableStateOf(false) }    // đang tải bài này
     var libPaused by remember { mutableStateOf(false) }  // bản đã tải: đang tạm dừng
+    var libPct by remember { mutableStateOf(0) }         // tiến độ tải (%)
     val mp3Dl = remember { (ctx as? Activity)?.let { Mp3Downloader(it) } }
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
     var remotePane by remember { mutableStateOf<RemotePane?>(null) }   // app con Điều khiển TV (remote app TV qua WebRTC)
@@ -1406,14 +1407,15 @@ fun Phone() {
             return
         }
         val title = libTitle
-        libBusy = true
+        libBusy = true; libPct = 0
         dl.start(u, Library.file(ctx, title),
             onStatus = { Toast.makeText(ctx, it, Toast.LENGTH_SHORT).show() },
             onResult = { ok, msg ->
                 libBusy = false
                 if (ok && libTitle == title) libHave = true
                 Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
-            })
+            },
+            onProgress = { libPct = it })
     }
     /** Bản đã tải: bật / tạm dừng. */
     fun libToggle() {
@@ -2206,9 +2208,14 @@ fun Phone() {
                                             }
                                         }
                                         // Đã có bản tải trong app (hoặc đang nghe bản đó): ẩn nút Tải xuống
-                                        if (!libHave && !libLocal) Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(52.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
+                                        if (!libHave && !libLocal) Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(44.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
                                             contentAlignment = Alignment.Center) {
-                                            Text(if (libBusy) "ĐANG TẢI..." else "TẢI XUỐNG", color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                            Text(if (libBusy) "ĐANG TẢI ${libPct}%" else "TẢI XUỐNG", Modifier.padding(bottom = if (libBusy) 5.dp else 0.dp),
+                                                color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                            // Thanh tiến độ % ngay trên nút
+                                            if (libBusy) Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(6.dp).background(LCD.copy(alpha = 0.3f))) {
+                                                Box(Modifier.fillMaxHeight().fillMaxWidth((libPct / 100f).coerceIn(0f, 1f)).background(LCD))
+                                            }
                                         }
                                     }
                                 } else {

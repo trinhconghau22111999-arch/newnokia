@@ -109,6 +109,14 @@ class Mp3Downloader(private val act: Activity) {
     private var dest: File? = null
     private var onStatus: (String) -> Unit = {}
     private var onResult: (Boolean, String) -> Unit = { _, _ -> }
+    private var onProgress: (Int) -> Unit = {}
+    private var pct = 0
+
+    /** Chỉ tăng, tối đa 99 cho tới khi lưu xong. */
+    private fun progress(p: Int) {
+        val v = p.coerceIn(0, 99)
+        if (v > pct) { pct = v; main.post { if (running) onProgress(v) } }
+    }
 
     val busy: Boolean get() = running
 
@@ -126,10 +134,11 @@ class Mp3Downloader(private val act: Activity) {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun start(videoUrl: String, dest: File, onStatus: (String) -> Unit, onResult: (Boolean, String) -> Unit) {
+    fun start(videoUrl: String, dest: File, onStatus: (String) -> Unit, onResult: (Boolean, String) -> Unit, onProgress: (Int) -> Unit = {}) {
         if (running) return
         running = true; fetching = false; sawCaptcha = false; fills = 0; fetches = 0; phase2At = 0L
-        this.videoUrl = videoUrl; this.dest = dest; this.onStatus = onStatus; this.onResult = onResult
+        this.videoUrl = videoUrl; this.dest = dest; this.onStatus = onStatus; this.onResult = onResult; this.onProgress = onProgress
+        pct = 0; onProgress(0)
         startedAt = System.currentTimeMillis()
         onStatus("Đang mở trang tải nhạc...")
         val w = WebView(act)
@@ -174,6 +183,8 @@ class Mp3Downloader(private val act: Activity) {
             if (!running) return
             if (System.currentTimeMillis() - startedAt > TIMEOUT_MS) { finish(false, if (sawCaptcha) "Trang đòi xác minh không phải robot, app không tự vượt qua được" else "Quá thời gian, thử lại sau"); return }
             if (fetching) { main.postDelayed(this, 1000); return }
+            val t = (System.currentTimeMillis() - startedAt) / 1000.0
+            progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
             w.evaluateJavascript(STEP_JS.replace("%URL%", JSONObject.quote(videoUrl))) { raw ->
                 if (!running) return@evaluateJavascript
                 val r = try { JSONObject("{\"v\":$raw}").optString("v") } catch (_: Exception) { "" }
@@ -201,6 +212,7 @@ class Mp3Downloader(private val act: Activity) {
         if (!running || fetching) return
         if (url.startsWith("blob:") || url.startsWith("data:")) {
             fetching = true
+            progress(90)
             onStatus("Đang lưu nhạc...")
             val js = "(function(){try{fetch(" + JSONObject.quote(url) + ").then(function(r){return r.blob()}).then(function(b){" +
                 "var f=new FileReader();f.onload=function(){AndroidDl.blob(f.result)};f.readAsDataURL(b)}).catch(function(){AndroidDl.fail()})}catch(e){AndroidDl.fail()}})()"
@@ -225,7 +237,16 @@ class Mp3Downloader(private val act: Activity) {
                 if (ct.contains("text/html") || ct.contains("json")) { conn.disconnect(); fetchFailed("Liên kết không phải tệp nhạc"); return@Thread }
                 val d = dest ?: return@Thread
                 val tmp = File(d.parentFile, d.name + ".part")
-                conn.inputStream.use { i -> tmp.outputStream().use { o -> i.copyTo(o) } }
+                val total = conn.contentLengthLong
+                progress(40)
+                conn.inputStream.use { i -> tmp.outputStream().use { o ->
+                    val buf = ByteArray(32 * 1024); var done = 0L; var n = 0
+                    while (i.read(buf).also { n = it } > 0) {
+                        o.write(buf, 0, n); done += n
+                        // biết dung lượng: 40..95% theo byte; không biết: tăng dần theo từng 100KB
+                        progress(if (total > 0) 40 + (55 * done / total).toInt() else 40 + minOf(50L, done / 100_000L).toInt())
+                    }
+                } }
                 conn.disconnect()
                 commit(tmp)
             } catch (e: Exception) { fetchFailed("Tải lỗi: " + (e.message ?: "không rõ")) }
@@ -272,6 +293,7 @@ class Mp3Downloader(private val act: Activity) {
             try { w.stopLoading(); w.loadUrl("about:blank"); w.destroy() } catch (_: Exception) {}
         }
         web = null
+        if (ok) onProgress(100)
         onResult(ok, if (ok || msg.startsWith("Tải lỗi")) msg else "Tải lỗi: " + msg)
     }
 
