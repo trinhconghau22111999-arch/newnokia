@@ -47,7 +47,7 @@ var b=all.length>30?all.slice(0,5).concat(['...']).concat(all.slice(-25)):all;
 o.push('buttons='+b.join(' | '));
 var fi=null;for(var q=0;q<ins.length;q++){var tt=(ins[q].type||'text').toLowerCase();if((tt==='text'||tt==='url'||tt==='search')&&vis(ins[q])){fi=ins[q];break}}
 if(fi){var fc=fi.closest('form')||(fi.parentElement&&fi.parentElement.parentElement&&fi.parentElement.parentElement.parentElement)||fi.parentElement;o.push('form='+(fc?fc.outerHTML.replace(/\s+/g,' ').slice(0,900):''))}
-try{var sx=window.__dl;o.push('S='+JSON.stringify({phase:sx.phase,btn:sx.btn,n:sx.n,sel:sx.selDone,q:!!sx.qEl,v1:sx.v1,v2:sx.v2,ins:sx.ins}))}catch(e){o.push('S=none')}
+try{var sx=window.__dl;o.push('S='+JSON.stringify({phase:sx.phase,btn:sx.btn,n:sx.n,sel:sx.selDone,q:!!sx.qEl,v1:sx.v1,v2:sx.v2,ins:sx.ins,hyd:sx.hyd,w:sx.w,retry:sx.retry}))}catch(e){o.push('S=none')}
 var cbs=document.querySelectorAll('input[type=checkbox]');var cl=[];
 for(var cz=0;cz<cbs.length;cz++){if(vis(cbs[cz])){var cp=cbs[cz].closest('label')||cbs[cz].parentElement;cl.push('checked='+cbs[cz].checked+' '+(cp?cp.outerHTML.replace(/\s+/g,' ').slice(0,250):''))}}
 if(cl.length)o.push('checkbox='+cl.join(' || '));
@@ -75,6 +75,11 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
   for(var i=0;i<ins.length;i++){var t=(ins[i].type||'text').toLowerCase();
    if((t==='text'||t==='url'||t==='search'||t==='')&&vis(ins[i])){inp=ins[i];break}}
   if(!inp)return 'wait';
+  // Trang Next.js/React: đợi nó nạp xong (nút/ô nhập có thuộc tính __react...) rồi mới gõ, nếu không nó sẽ xóa chữ vừa gõ và chưa gắn xử lý gửi form. Tối đa ~12 nhịp.
+  var hyd=false;try{hyd=Object.keys(inp).some(function(k){return k.indexOf('__react')===0})}catch(e){}
+  S.w=(S.w||0)+1;
+  if(!hyd&&S.w<12)return 'wait';
+  S.hyd=hyd;
   S.snap=new Set(document.querySelectorAll('a,button'));
   var setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
   inp.focus();try{inp.select()}catch(e){}
@@ -99,6 +104,9 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
  }
  if(S.phase===1){
   S.n=(S.n||0)+1;
+  // Sau ~10 nhịp mà ô nhập đã bị trang xóa trống = trang chưa nhận lệnh gửi -> điền và gửi lại (tối đa 2 lần)
+  if(S.n>=10&&(S.retry||0)<2){var ci=document.querySelector('input[type=text]');
+   if(ci&&!ci.value){S.retry=(S.retry||0)+1;S.phase=0;S.mp3Clicked=0;return 'wait'}}
   var cap=document.querySelector('iframe[src*=captcha],iframe[src*=turnstile],iframe[src*=challenge],.cf-turnstile,.g-recaptcha,#challenge-form');
   if(cap&&vis(cap)&&!S.capSent){S.capSent=1;return 'captcha'}
   // Có chọn chất lượng: chọn bitrate cao nhất miễn phí (bỏ mục có chữ PRO / Premium / VIP / đăng nhập)
