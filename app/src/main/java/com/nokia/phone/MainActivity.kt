@@ -65,6 +65,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -593,6 +594,9 @@ fun Phone() {
     var libFrom by remember { mutableStateOf(false) }    // đang nghe từ danh sách Nhạc: Về = quay lại danh sách
     var libSel by remember { mutableStateOf(0) }         // dòng đã chọn trong danh sách Nhạc (để quay lại đúng chỗ)
     var webPlay by remember { mutableStateOf(false) }    // tìm xong tự phát kết quả đầu tiên
+    var libPlay by remember { mutableStateOf(false) }    // đang ở màn hình phát nhạc riêng (ẩn giao diện YouTube)
+    var libTitle by remember { mutableStateOf("") }      // tên bài đang phát
+    var libUrl by remember { mutableStateOf("") }        // đường dẫn tệp mp3 trực tiếp (nếu có) để tải về app
     var tvPane by remember { mutableStateOf<TvPane?>(null) }
     var remotePane by remember { mutableStateOf<RemotePane?>(null) }   // app con Điều khiển TV (remote app TV qua WebRTC)
     var remoteMicTick by remember { mutableIntStateOf(0) }            // nút giọng nói trên remote bấm -> tăng để mở micro
@@ -609,7 +613,7 @@ fun Phone() {
     }
     // Chỉ khi đang ở TV / YouTube mới cho xoay ngang (xoay ngang = tự full màn); màn khác giữ dọc như Nokia thật
     LaunchedEffect(screen, inSplit.value) {
-        val web = (screen == "youtube" || screen == "tv") && !inSplit.value
+        val web = (screen == "youtube" || screen == "tv") && !inSplit.value && !(screen == "youtube" && libPlay)
         (ctx as? Activity)?.requestedOrientation =
             if (web) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         // Zalo Web / YouTube / TV: cấm tuyệt đối bàn phím ảo của máy (ẩn ngay nếu đang hiện, và không cho tự bật)
@@ -623,7 +627,7 @@ fun Phone() {
     // YouTube: xoay ngang = tự bấm nút phóng to của video (video vẫn phát tiếp), xoay dọc = thu nhỏ lại
     val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     // Xem ngang YouTube / TV: video phủ kín toàn màn hình (che cả bàn phím), không dùng hộp Dialog nữa
-    val ytLandOverlay = isLandscape && !inSplit.value && fullView == null && screen == "youtube"
+    val ytLandOverlay = isLandscape && !inSplit.value && fullView == null && screen == "youtube" && !libPlay
     val tvLandOverlay = isLandscape && !inSplit.value && fullView == null && screen == "tv"
     LaunchedEffect(isLandscape, ytPane) { ytPane?.setTouchLock(!isLandscape) }   // để dọc: khóa chạm ngoài khung video
     LaunchedEffect(isLandscape, screen, ytPane) {
@@ -1324,6 +1328,7 @@ fun Phone() {
     fun open(s: String) {
         if (s != "music") aiMusicQ = null
         if (s != "youtube" && s != "music") libFrom = false
+        if (s != "youtube") libPlay = false
         if (s != "camera") aiShoot = false
         screen = s; sel = 0; monthOffset = 0
         if (s == "topup") {
@@ -1382,22 +1387,34 @@ fun Phone() {
     }
     /** Phím mũi tên ở màn hình chờ: mở thẳng app; bấm Về thì quay lại màn hình chờ (không qua Menu). */
     fun shortcut(s: String) { open(s); fromHome = true }
+    /** Nút Tải xuống: chỉ tải được khi bài có đường dẫn tệp mp3 trực tiếp; bài phát qua YouTube thì chưa tải được. */
+    fun libDownload() {
+        if (libUrl.isEmpty()) {
+            Toast.makeText(ctx, "Bài này nghe qua YouTube nên chưa tải được", Toast.LENGTH_LONG).show()
+            return
+        }
+        Toast.makeText(ctx, "Đang tải...", Toast.LENGTH_SHORT).show()
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { Library.download(ctx, libTitle, libUrl) }
+            Toast.makeText(ctx, if (ok) "Đã tải xong" else "Tải lỗi, thử lại sau", Toast.LENGTH_LONG).show()
+        }
+    }
     /** Nhạc: mở YouTube ngay trong ô LCD, tự tìm và phát kết quả đầu tiên. */
-    fun playLib(q: String, fromList: Boolean) {
-        libFrom = fromList; libSel = sel
+    fun playLib(q: String, fromList: Boolean, title: String = q, url: String = "") {
+        libFrom = fromList; libSel = sel; libPlay = true; libTitle = title; libUrl = url
         webQuery = q; webPlay = true
         open("youtube")
     }
     fun libOk() {
         if (libCat < 0) { libCat = sel.coerceIn(0, Library.CATS.lastIndex); sel = 0 }
-        else Library.CATS.getOrNull(libCat)?.items?.getOrNull(sel)?.let { playLib(it.query, true) }
+        else Library.CATS.getOrNull(libCat)?.items?.getOrNull(sel)?.let { playLib(it.query, true, it.title, it.url) }
     }
 
     fun back() {
         when (screen) {
             "home" -> {}
             "menu" -> open("home")
-            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (libFrom) { libFrom = false; val c = libCat; val sl = libSel; open("music"); libCat = c; sel = sl } else if (ytPane?.back() != true) open("menu")
+            "youtube" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (libPlay) { if (libFrom) { libFrom = false; val c = libCat; val sl = libSel; open("music"); libCat = c; sel = sl } else open("home") } else if (ytPane?.back() != true) open("menu")
             "tv" -> if (ytVoice == 1) { voice.cancel(); ytVoice = 0 } else if (fullView != null) webHost.hideFull() else if (isLandscape) { /* xoay ngang: không có nút Về, muốn thoát thì xoay dọc */ } else if (tvPane?.back() != true) open("menu")
             "contacts" -> if (entry.text.isNotEmpty()) { entry.reset(); entry.mode = 0; sel = 0 }   // đang tìm: Về = xóa ô tìm
                 else if (fromHome) open("home") else open("menu")
@@ -1519,7 +1536,8 @@ fun Phone() {
                 if (q.isEmpty()) open("music")
                 else {
                     val hit = AiMatch.rank(Library.ALL.map { plain(it.title) }, q).firstOrNull()
-                    playLib(if (hit != null) Library.ALL[hit].query else q, false)
+                    val found = hit?.let { h -> Library.ALL[h] }
+                    playLib(found?.query ?: q, false, found?.title ?: q, found?.url ?: "")
                 }
             }
             is AiCmd.Open -> aiOpen(c.id)
@@ -1755,6 +1773,14 @@ fun Phone() {
                 "UP", "DOWN", "LEFT", "RIGHT", "OK" -> { remotePane?.key(k); return }   // phím cứng ▲▼◀▶ OK = bấm phím trên TV
                 "SOFTL" -> { open("menu"); return }   // phím Menu = về menu (nghe giọng nói đã có nút GIỌNG NÓI trên màn hình)
             }
+        }
+        if (screen == "youtube" && libPlay) {   // màn hình phát nhạc: không có dừng / tua / chọn bài khác, chỉ Tải xuống và Về
+            when (k) {
+                "OK", "SOFTL" -> libDownload()
+                "SOFTR" -> back()
+                "END" -> open("home")
+            }
+            return
         }
         if (screen == "youtube" || screen == "tv") {
             if (ytVoice == 1) {   // đang nghe: OK / phím mềm trái = nói xong; phím khác bỏ qua
@@ -2009,7 +2035,7 @@ fun Phone() {
         "recorder" -> if (sel == 0) "Ghi" else if (playing != null && playing == recs.getOrNull(sel - 1)?.file?.absolutePath) "Dừng" else "Nghe"
         "alarmEdit" -> if (editField == 3 && editIdx < alarms.size) "Xóa" else "Lưu"
         "calllog" -> "Gọi"; "topup" -> "Chụp"
-        "youtube", "tv" -> if (ytVoice == 1) "Xong" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
+        "youtube", "tv" -> if (ytVoice == 1) "Xong" else if (screen == "youtube" && libPlay) "Tải" else "Nói"   // nút Nói: nói để tìm kiếm trong YouTube / tìm kênh tivi
         "remote" -> if (ytVoice == 1) "Xong" else ""   // ẩn nút AI: đã có nút GIỌNG NÓI trong màn hình; khi đang nghe vẫn hiện "Xong"
         "ai" -> when (aiState) { 1 -> "Xong"; 3 -> (if (aiKind == 1) "Gọi" else if (aiKind == 2) "Gửi" else "Soạn"); else -> "Nói" }
         "music" -> if (libCat < 0) "Mở" else "Phát"
@@ -2101,8 +2127,24 @@ fun Phone() {
                                 ink = homeInk, inkOn = if (homeInk == Color.White) LCD else Color.White, rowBg = Color.Transparent, style = homeSh)
                                 else Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
-                                WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
-                                if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
+                                if (libPlay) {
+                                    // YouTube vẫn phát (âm thanh) nhưng ẩn hẳn; hiện màn hình phát riêng: tên bài + nút Tải xuống
+                                    Box(Modifier.fillMaxSize().alpha(0f)) { WebArea(ytPane?.view, fullView, false) { back() } }
+                                    Column(Modifier.fillMaxSize().background(LCD).pointerInput(Unit) { detectTapGestures { } }
+                                        .padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                            Text(libTitle, color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 24.sp,
+                                                lineHeight = 30.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                                        }
+                                        Box(Modifier.fillMaxWidth().height(52.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
+                                            contentAlignment = Alignment.Center) {
+                                            Text("TẢI XUỐNG", color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                        }
+                                    }
+                                } else {
+                                    WebArea(if (ytLandOverlay) null else ytPane?.view, fullView, false) { back() }
+                                    if (ytVoice == 1) YtListenOverlay(ytHeard, aiLevel)
+                                }
                             }
                             "tv" -> Box(Modifier.fillMaxSize()) {
                                 WebArea(if (tvLandOverlay) null else tvPane?.view, fullView, false) { back() }

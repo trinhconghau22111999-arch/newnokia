@@ -1,7 +1,7 @@
 package com.nokia.phone
 
 /** Một bài / vở / chương trình trong mục Nhạc. query = từ khóa tìm trên YouTube. */
-data class LibItem(val title: String, val query: String)
+data class LibItem(val title: String, val query: String, val url: String = "")   // url: tệp mp3 trực tiếp (nếu có) để tải về app
 data class LibCat(val name: String, val items: List<LibItem>)
 
 /** Kho nghe sẵn cho người lớn tuổi: Cải lương, Tuồng (hát bội), Nhạc xưa; mỗi mục 50. Chọn một dòng -> YouTube tự tìm và phát kết quả đầu tiên. */
@@ -174,4 +174,14 @@ object Library {
         LibCat("Nhạc xưa", mk("nhạc xưa", listOf("nhạc", "tuyển chọn"), NHAC_XUA))
     )
     val ALL: List<LibItem> = CATS.flatMap { it.items }
+
+    /** Tải tệp âm thanh (đường dẫn trực tiếp) vào bộ nhớ riêng của app: mất khi xóa dữ liệu / khôi phục cài đặt gốc. */
+    fun download(ctx: android.content.Context, title: String, url: String): Boolean = try {
+        val dir = java.io.File(ctx.filesDir, "nghe").apply { mkdirs() }
+        val name = title.replace(Regex("[^\\p{L}\\p{N} ]"), "").trim().ifEmpty { "bai" } + ".mp3"
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 15000; conn.readTimeout = 30000
+        conn.inputStream.use { i -> java.io.File(dir, name).outputStream().use { o -> i.copyTo(o) } }
+        true
+    } catch (e: Exception) { false }
 }
