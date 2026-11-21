@@ -2183,9 +2183,9 @@ fun Phone() {
                             }
                             "ai" -> AiScreen(aiState, aiHeard, aiMsg, aiLevel, aiCands, aiPick, aiKind, aiBody)
                             "topup" -> TopUpScreen(topupCamOk, topupCam, topupMsg, topupBusy) { press("OK") }
-                            "menu" -> if (homePhoto) Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true,
+                            "menu" -> if (homePhoto) Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.2075f, rowK = 1.7304f, caps = true,
                                 ink = homeInk, inkOn = if (homeInk == Color.White) LCD else Color.White, rowBg = Color.Transparent, style = homeSh)
-                                else Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.05f, caps = true)   // tên mục menu to hơn 5%
+                                else Lines(menuItems.map { it.first }, sel, tapItem, scroll, scale = 1.2075f, rowK = 1.7304f, caps = true)   // tên mục menu to hơn 5%
                             "youtube" -> Box(Modifier.fillMaxSize()) {
                                 if (libPlay) {
                                     // YouTube vẫn phát (âm thanh) nhưng ẩn hẳn; hiện màn hình phát riêng: tên bài + nút Tải xuống
