@@ -10,10 +10,12 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Base64
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -42,7 +44,10 @@ o.push('inputs='+a.join(' | '));
 var bs=document.querySelectorAll('a[href],button');var b=[];
 for(var j=0;j<bs.length&&b.length<25;j++){if(vis(bs[j]))b.push((bs[j].textContent||'').trim().slice(0,30)+(bs[j].href?' > '+bs[j].href.slice(0,70):''))}
 o.push('buttons='+b.join(' | '));
-o.push('text='+(document.body.innerText||'').replace(/\s+/g,' ').slice(0,400));
+var fi=null;for(var q=0;q<ins.length;q++){var tt=(ins[q].type||'text').toLowerCase();if((tt==='text'||tt==='url'||tt==='search')&&vis(ins[q])){fi=ins[q];break}}
+if(fi){var fc=fi.closest('form')||(fi.parentElement&&fi.parentElement.parentElement&&fi.parentElement.parentElement.parentElement)||fi.parentElement;o.push('form='+(fc?fc.outerHTML.replace(/\s+/g,' ').slice(0,900):''))}
+try{var sx=window.__dl;o.push('S='+JSON.stringify({phase:sx.phase,btn:sx.btn,n:sx.n,sel:sx.selDone,q:!!sx.qEl}))}catch(e){o.push('S=none')}
+o.push('text='+(document.body.innerText||'').replace(/\s+/g,' ').slice(0,300));
 return o.join('\n')}catch(e){return 'dump err '+e}})()
 """
 
@@ -123,6 +128,9 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
     private var lastActAt = 0L
     private var stalling = false
     private var phase2At = 0L
+    private val netLog = mutableListOf<String>()   // các yêu cầu mạng gần nhất của WebView (bỏ ảnh/css/font) để chẩn đoán
+    private val conLog = mutableListOf<String>()   // thông báo console của trang
+    private fun logTo(l: MutableList<String>, s: String) { synchronized(l) { l.add(s); if (l.size > 14) l.removeAt(0) } }
     private var clicks = 0              // số lần bấm/nhận link tải; quá giới hạn -> báo lỗi, không lặp mãi
     private var lastByteAt = 0L         // lần cuối có dữ liệu về (hoặc lúc bắt đầu tải tệp)
     private var videoUrl = ""
@@ -171,8 +179,25 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
         CookieManager.getInstance().setAcceptThirdPartyCookies(w, true)
         w.addJavascriptInterface(Bridge(), "AndroidDl")
         w.setDownloadListener { url, ua, _, _, _ -> onFile(url, ua) }
-        w.webChromeClient = WebChromeClient()
+        w.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(cm: ConsoleMessage?): Boolean {
+                cm?.let { logTo(conLog, "${it.messageLevel()}: ${it.message().take(140)}") }
+                return true
+            }
+        }
+        synchronized(netLog) { netLog.clear() }; synchronized(conLog) { conLog.clear() }
         w.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                request?.let {
+                    val u = it.url.toString()
+                    if (!Regex("\\.(png|jpe?g|gif|svg|css|woff2?|ttf|ico|webp)(\\?|$)", RegexOption.IGNORE_CASE).containsMatchIn(u))
+                        logTo(netLog, "${it.method} ${u.take(120)}")
+                }
+                return null
+            }
+            override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
+                request?.let { logTo(netLog, "HTTP ${errorResponse?.statusCode} ${it.url.toString().take(100)}") }
+            }
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val r = request ?: return false
                 if (!r.isForMainFrame) return false
@@ -251,7 +276,9 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
             val d = try { JSONObject("{\"v\":$raw}").optString("v") } catch (_: Exception) { "" }
             try {
                 val cm = act.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("savemp3", "bước=$step\n$d"))
+                val net = synchronized(netLog) { netLog.joinToString("\n") }
+                val con = synchronized(conLog) { conLog.joinToString("\n") }
+                cm.setPrimaryClip(ClipData.newPlainText("savemp3", "bước=$step fills=$fills clicks=$clicks fetches=$fetches\n$d\n--net--\n$net\n--console--\n$con"))
             } catch (_: Exception) {}
             main.removeCallbacks(done); done.run()
         }
