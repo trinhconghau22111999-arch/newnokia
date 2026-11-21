@@ -1781,10 +1781,7 @@ fun Phone() {
                 "END" -> open("home")
                 // ◀ lùi 30 giây, ▶ tới 30 giây (video YouTube đang phát ẩn phía sau)
                 "LEFT", "RIGHT" -> {
-                    val sec = if (k == "RIGHT") 30 else -30
-                    ytPane?.view?.evaluateJavascript(
-                        "(function(){var v=document.querySelector('video');if(!v)return;var d=v.duration;var t=v.currentTime+($sec);" +
-                        "if(d&&isFinite(d))t=Math.min(t,d-0.5);v.currentTime=Math.max(0,t);})()", null)
+                    ytPane?.seekBy(if (k == "RIGHT") 30 else -30)
                 }
             }
             return
@@ -2386,7 +2383,7 @@ fun Phone() {
                                     Hint("\u00A0")   // ẩn dòng hướng dẫn nhưng giữ nguyên chiều cao để vị trí danh sách không đổi
                                     Spacer(Modifier.height(4.dp))
                                     val catLines = remember { Library.CATS.mapIndexed { i, c -> "${i + 1}. ${c.name}" } }
-                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f)   // chữ +20%, khoảng cách giữa dòng x2 }
+                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f) }   // chữ +20%, khoảng cách giữa dòng x2
                                 } else {
                                     val cat = Library.CATS[libCat.coerceIn(0, Library.CATS.lastIndex)]
                                     Head("${cat.name.uppercase()} (${cat.items.size})")

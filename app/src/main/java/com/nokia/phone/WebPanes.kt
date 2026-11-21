@@ -125,6 +125,14 @@ private fun chromeClient(full: FullscreenHost) = object : WebChromeClient() {
 class YouTubePane(private val act: Activity, private val full: FullscreenHost) {
     val web: WebView = NoKeyboardWebView(act)
     val view: View get() = web
+
+    /** Tua video đang phát tới/lui sec giây (âm = lui), không vượt quá đầu/cuối bài. */
+    fun seekBy(sec: Int) {
+        if (destroyedYt) return
+        web.evaluateJavascript(
+            "(function(){var v=document.querySelector('video');if(!v)return;var d=v.duration;var t=v.currentTime+(" + sec + ");" +
+            "if(d&&isFinite(d))t=Math.min(t,d-0.5);v.currentTime=Math.max(0,t);})()", null)
+    }
     private var lastToastAt = 0L
     private var destroyedYt = false
 
