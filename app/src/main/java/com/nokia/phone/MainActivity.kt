@@ -1476,6 +1476,19 @@ fun Phone() {
         }
     }
 
+    // Nghe bản đã tải: chỉ tắt màn hình mới nghe tiếp; chuyển sang app khác / thoát ra ngoài (màn hình vẫn sáng) thì dừng nhạc và xóa chế độ phát
+    DisposableEffect(Unit) {
+        val owner = ctx as? androidx.lifecycle.LifecycleOwner
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_STOP && libLocal) {
+                val pm = ctx.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                if (pm?.isInteractive != false) { Music.stop(); libLocal = false; libPaused = false; if (screen == "youtube") back() }
+            }
+        }
+        owner?.lifecycle?.addObserver(obs)
+        onDispose { owner?.lifecycle?.removeObserver(obs) }
+    }
+
     // ======================= AI điều khiển bằng giọng nói =======================
     /** Xong một lệnh AI: báo ngắn bằng Toast (nếu có) rồi về màn hình chính ngay, không dừng ở màn hình kết quả. */
     fun aiFinish(msg: String = "") {
