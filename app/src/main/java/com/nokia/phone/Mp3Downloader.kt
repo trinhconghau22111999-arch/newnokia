@@ -27,7 +27,6 @@ class Mp3Downloader(private val act: Activity) {
     companion object {
         const val SITE = "https://vi.savemp3.net/ruhuh/youtube-video-to-mp3/"
         private const val SITE_HOST = "savemp3.net"
-        private const val TIMEOUT_MS = 100_000L
         private const val MIN_BYTES = 30_000L
 
         // Mỗi nhịp: (1) chưa điền -> dán đường dẫn + bấm nút chuyển đổi; (2) đã bấm -> tìm nút/liên kết Tải xuống MỚI xuất hiện.
@@ -181,7 +180,6 @@ class Mp3Downloader(private val act: Activity) {
         override fun run() {
             val w = web ?: return
             if (!running) return
-            if (System.currentTimeMillis() - startedAt > TIMEOUT_MS) { finish(false, if (sawCaptcha) "Trang đòi xác minh không phải robot, app không tự vượt qua được" else "Quá thời gian, thử lại sau"); return }
             if (fetching) { main.postDelayed(this, 1000); return }
             val t = (System.currentTimeMillis() - startedAt) / 1000.0
             progress((40 * (1 - Math.exp(-t / 20.0))).toInt())
