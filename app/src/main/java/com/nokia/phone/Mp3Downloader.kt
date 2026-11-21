@@ -53,6 +53,10 @@ for(var cz=0;cz<cbs.length;cz++){if(vis(cbs[cz])){var cp=cbs[cz].closest('label'
 if(cl.length)o.push('checkbox='+cl.join(' || '));
 var dg=document.querySelector('[role=dialog],[aria-modal=true],dialog[open]');
 if(dg)o.push('dialog='+dg.outerHTML.replace(/\s+/g,' ').slice(0,900));
+var rm=[],al=document.querySelectorAll('body *');
+for(var rz=0;rz<al.length;rz++){var rt=(al[rz].textContent||'').trim().toLowerCase();if(rt.length<=14&&/^(tải xuống|tải về|download)/.test(rt)&&vis(al[rz]))rm.push(al[rz])}
+if(rm.length){o.push('dlmatch='+rm.slice(0,5).map(function(e){return e.tagName+'.'+String(e.className||'').slice(0,50)+(e.href?' href='+e.href.slice(0,60):'')+(e.disabled?' [disabled]':'')}).join(' | '));
+ var rp=rm[0].parentElement&&rm[0].parentElement.parentElement?rm[0].parentElement.parentElement:rm[0];o.push('dlhtml='+rp.outerHTML.replace(/\s+/g,' ').slice(0,900))}
 var bt2=(document.body.innerText||'').replace(/\s+/g,' ');
 o.push('text='+bt2.slice(0,200));o.push('tail='+bt2.slice(-500));
 return o.join('\n')}catch(e){return 'dump err '+e}})()
@@ -114,6 +118,18 @@ return o.join('\n')}catch(e){return 'dump err '+e}})()
    var qh=S.qEl.href||'';
    if(qh&&qh.indexOf('javascript:')!==0&&qh!==location.href&&qh.charAt(qh.length-1)!=='#'&&/^https?:/.test(qh)&&!/savemp3\.net\/[a-z]{2,}\//.test(qh)){S.phase=2;return 'link:'+qh}
    S.qEl.click();return 'quality'}
+  // Nút "Tải xuống" của trang không hẳn là <a>/<button>: tìm phần tử bất kỳ có chữ đúng như vậy rồi bấm vào phần tử bấm được gần nhất
+  var ms=[],all2=document.querySelectorAll('body *');
+  for(var g=0;g<all2.length;g++){var gt=(all2[g].textContent||'').trim().toLowerCase();
+   if(gt.length<=14&&/^(tải xuống|tải về|download)/.test(gt)&&vis(all2[g]))ms.push(all2[g])}
+  if(ms.length){
+   var first=ms[0],deep=first;
+   for(var g2=1;g2<ms.length;g2++){if(first.contains(ms[g2]))deep=ms[g2]}
+   var tg=deep.closest('a[href],button,[role=button],[onclick]')||deep;
+   if(!tg.disabled&&tg.getAttribute('aria-disabled')!=='true'){
+    var gh=tg.href||'';
+    if(gh&&gh.indexOf('javascript:')!==0&&gh!==location.href&&gh.charAt(gh.length-1)!=='#'&&/^https?:/.test(gh)&&!/savemp3\.net\/[a-z]{2,}\//.test(gh)&&!/play\.google/.test(gh)){S.phase=2;return 'link:'+gh}
+    tg.click();S.phase=2;return 'click'}}
   var els=document.querySelectorAll('a[href],button');
   for(var q=0;q<els.length;q++){var e=els[q];
    if(S.snap&&S.snap.has(e))continue;if(!vis(e))continue;
