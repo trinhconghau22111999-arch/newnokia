@@ -2322,17 +2322,17 @@ fun Phone() {
                             "music" -> Column(Modifier.fillMaxSize()) {
                                 if (libCat < 0) {
                                     Head("NHẠC")
-                                    Hint("OK:chọn mục  ▲▼:đổi mục")
+                                    Hint("\u00A0")   // ẩn dòng hướng dẫn nhưng giữ nguyên chiều cao để vị trí danh sách không đổi
                                     Spacer(Modifier.height(4.dp))
                                     val catLines = remember { Library.CATS.mapIndexed { i, c -> "${i + 1}. ${c.name}" } }
-                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll) }
+                                    Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.1f) }
                                 } else {
                                     val cat = Library.CATS[libCat.coerceIn(0, Library.CATS.lastIndex)]
                                     Head("${cat.name.uppercase()} (${cat.items.size})")
-                                    Hint("OK:phát  Về:về danh sách mục")
+                                    Hint("\u00A0")
                                     Spacer(Modifier.height(4.dp))
                                     val itemLines = remember(libCat) { cat.items.mapIndexed { i, t -> "${i + 1}. ${t.title}" } }
-                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll) }
+                                    Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll, scale = 1.1f) }
                                 }
                             }
                             "snake" -> Column(Modifier.fillMaxSize()) {
