@@ -2132,11 +2132,23 @@ fun Phone() {
                                     Box(Modifier.fillMaxSize().alpha(0f)) { WebArea(ytPane?.view, fullView, false) { back() } }
                                     Column(Modifier.fillMaxSize().background(LCD).pointerInput(Unit) { detectTapGestures { } }
                                         .padding(horizontal = 10.dp, vertical = 8.dp)) {
-                                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                            Text(libTitle, color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 24.sp,
-                                                lineHeight = 30.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                                        // Đĩa nhạc hình tròn nằm dưới tên bài, tên bài nằm trong nhãn đĩa
+                                        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                            val d = minOf(maxWidth, maxHeight)
+                                            Box(Modifier.size(d), contentAlignment = Alignment.Center) {
+                                                Canvas(Modifier.fillMaxSize()) {
+                                                    val r = size.minDimension / 2f
+                                                    drawCircle(INK.copy(alpha = 0.12f), r, center)
+                                                    drawCircle(INK, r - 1.5.dp.toPx(), center, style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+                                                    for (k in 1..4) drawCircle(INK.copy(alpha = 0.35f), r * (1f - 0.06f * k), center,
+                                                        style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+                                                    drawCircle(INK, r * 0.70f, center, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+                                                }
+                                                Text(libTitle, Modifier.width(d * 0.58f), color = INK, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                                                    lineHeight = 26.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                                            }
                                         }
-                                        Box(Modifier.fillMaxWidth().height(52.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
+                                        Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(0.6f).height(52.dp).clip(ChamferShape(8.dp)).background(INK).clickable { libDownload() },
                                             contentAlignment = Alignment.Center) {
                                             Text("TẢI XUỐNG", color = LCD, fontFamily = MONO, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                         }
