@@ -1449,7 +1449,7 @@ fun Phone() {
     }
     fun libOk() {
         if (libCat < 0) { libCat = sel.coerceIn(0, Library.CATS.lastIndex); sel = 0 }
-        else Library.CATS.getOrNull(libCat)?.items?.getOrNull(sel)?.let { playLib(it.query, true, it.title, it.url) }
+        else Library.CATS.getOrNull(libCat)?.let { Library.visible(ctx, it) }?.getOrNull(sel)?.let { playLib(it.query, true, it.title, it.url) }
     }
 
     fun back() {
@@ -1917,7 +1917,7 @@ fun Phone() {
             "accounts" -> maxOf(Accts.google(ctx).size, 1); "power" -> 2
             "contacts" -> maxOf(cShown.size, 1); "messages" -> threads.size + 1
             "thread" -> threadMsgs.size + 1; "msgview" -> maxOf(threadMsgs.size, 1); "recorder" -> recs.size + 1
-            "calllog" -> maxOf(calls.size, 1); "music" -> if (libCat < 0) Library.CATS.size else maxOf(Library.CATS.getOrNull(libCat)?.items?.size ?: 1, 1)
+            "calllog" -> maxOf(calls.size, 1); "music" -> if (libCat < 0) Library.CATS.size else maxOf(Library.CATS.getOrNull(libCat)?.let { Library.visible(ctx, it).size } ?: 1, 1)
             else -> 1 }
         when (k) {
             "UP", "LEFT" -> when (screen) {
@@ -2448,10 +2448,11 @@ fun Phone() {
                                     Box(Modifier.weight(1f)) { Lines(catLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.Black, textInk = Color.White) }   // chữ +20%, khoảng cách giữa dòng x2; ô đang chọn chữ đen, các dòng khác chữ trắng
                                 } else {
                                     val cat = Library.CATS[libCat.coerceIn(0, Library.CATS.lastIndex)]
-                                    Head("${cat.name.uppercase()} (${cat.items.size})")
+                                    val shown = Library.visible(ctx, cat)
+                                    Head("${cat.name.uppercase()} (${shown.size})")
                                     Hint("\u00A0")
                                     Spacer(Modifier.height(4.dp))
-                                    val itemLines = remember(libCat) { cat.items.mapIndexed { i, t -> "${i + 1}. ${t.title}" } }
+                                    val itemLines = shown.mapIndexed { i, t -> "${i + 1}. ${t.title}" }.ifEmpty { listOf("(chưa tải bài nào)") }
                                     Box(Modifier.weight(1f)) { Lines(itemLines, sel, tapItem, scroll, scale = 1.32f, rowK = 2.167f, inkOn = Color.Black, textInk = Color.White) }
                                 }
                             }

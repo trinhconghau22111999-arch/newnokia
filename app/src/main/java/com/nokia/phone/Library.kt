@@ -184,4 +184,15 @@ object Library {
 
     /** Bài này đã tải về app chưa. */
     fun has(ctx: android.content.Context, title: String): Boolean = file(ctx, title).let { it.isFile && it.length() > 30_000L }
+
+    /** Có mạng internet đang dùng được không (không xác định được thì coi như có). */
+    fun online(ctx: android.content.Context): Boolean = try {
+        val cm = ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    } catch (_: Throwable) { true }
+
+    /** Danh sách bài hiển thị: có mạng thì đủ 50 bài, mất mạng thì chỉ các bài đã tải mp3 về máy. */
+    fun visible(ctx: android.content.Context, cat: LibCat): List<LibItem> =
+        if (online(ctx)) cat.items else cat.items.filter { has(ctx, it.title) }
 }
